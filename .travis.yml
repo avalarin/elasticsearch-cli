@@ -12,7 +12,7 @@ env:
     # Used as conditional check in the install stage
     - HOST=x86_64-unknown-linux-gnu
     # Used on the deployment script
-    - PROJECT_NAME=elasctic-cli
+    - PROJECT_NAME=elastic-cli
 
 script:
   # Incorporate TARGET env var to the build and test process
