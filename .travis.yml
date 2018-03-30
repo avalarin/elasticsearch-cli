@@ -1,0 +1,53 @@
+language: rust
+cache: cargo
+matrix:
+  include:
+    - os: osx
+      rust: stable
+      env: TARGET=x86_64-apple-darwin
+
+env:
+  global:
+    # Default target on travis-ci.
+    # Used as conditional check in the install stage
+    - HOST=x86_64-unknown-linux-gnu
+    # Used on the deployment script
+    - PROJECT_NAME=elasctic-cli
+
+script:
+  # Incorporate TARGET env var to the build and test process
+  - cargo build --target $TARGET --verbose
+  - cargo test --target $TARGET --verbose
+
+before_deploy:
+  - bash ci/before_deploy.sh
+
+deploy:
+  provider: releases
+  # NOTE updating the `api_key.secure`
+  # - go to: https://github.com/settings/tokens/new
+  # - generate new token using `public_repo` scope
+  # - encrypt it using: `travis encrypt API_KEY_HERE`
+  # - paste the output below
+  api_key:
+    secure: "JJpD/sEC1N/v0dyAGNcRmOFx8sQoxOptnZ2fnfGXhQ2Ifjd8+vYNBOadegrAXNnxnqWZtMDgX6XDl6Eo7oM6AYPvLlS5++c/XMZjEiJaUzkCqT2/tEXNnS5Uii9juT1KojAOQkNrVohPFlrE61G0NVF7OWb3KVbKR8L+Mg6K80E4nHmeE1mASk25tpGZ4hCLGTRC7j8rXH2Q9OT5PHhwEyBRjDI+eipZoFyhP/qa/Z19qUjxP6AsMkte8+8itocU58s8bsO+Hbl9R8Ol7TBJ7xgPaKF5Ih3Tq26yWV6othOU0w/ODCNbcEOT8Rx79gSoQ6irKUcY6/URLRdLoJV+JAmw46gH5DM8hy0q7fRVjtu09zBK0bjcqN5wNOggyvzY9KWYqtXYWxSLqPUQBtx0EQAF3hnosxQgF3V32er5AuVcUpuZPhfjVfZeHw7+ZgoAl6HJpn5Wc3HmPyRej6GzDCow9WJDqkOlejhx+pzGscbjTKN2rZmeW0/31xyJrMHN4mrSlCgolhPpV7BlTM6mEYMCiyz+g4mrLyymrXsjZxp06oh/sYmnniFdanW8MdfZYhnG9glh7YtqmOR6WeZaOSEWOzDhRYdEBMZRSab2Oh78PNeuRztPS1ywUUQ+rN3PMilcL2qN+lexislwSJcscbEmUCoNZSrGV/L44UE0Em8="
+  # for uploading multiple files
+  file_glob: true
+  # NOTE explanation on each env variable
+  # - PROJECT_NAME: name of the project, set on the `env.global` above
+  # - TRAVIS_TAG: tag name that the build is being deployed for, usually the version number
+  # - TARGET: target triple of the build
+  file:
+    - $PROJECT_NAME-$TRAVIS_TAG-$TARGET.*
+    - $PROJECT_NAME*.deb
+  # don't delete artifacts from previous stage
+  skip_cleanup: true
+  on:
+    # deploy only if we push a tag
+    tags: true
+    # deploy only on stable channel that has TARGET env variable sets
+    condition: $TRAVIS_RUST_VERSION = stable && $TARGET != ""
+
+notifications:
+  email:
+    on_success: never
