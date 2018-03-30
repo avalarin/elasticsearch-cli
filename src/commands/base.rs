@@ -1,9 +1,11 @@
 use std::error::Error;
+use reqwest;
+use serde_json;
 
-pub trait Command<P, E>
+pub trait Command<E>
     where E: Error
 {
-    fn execute(&self, params: P) -> Result<(), E>;
+    fn execute(&mut self) -> Result<(), E>;
 }
 
 quick_error! {
@@ -13,9 +15,13 @@ quick_error! {
             description(descr)
             display("Invalid arguments: {}", descr)
         }
-        CommonError(descr: &'static str) {
-            description(descr)
-            display("Error: {}", descr)
+        CommonError(cause: Box<Error>) {
+            description(cause.description())
+            display("Error: {}", cause.description())
+
+            from(cause: reqwest::UrlError) -> (Box::new(cause))
+            from(cause: reqwest::Error) -> (Box::new(cause))
+            from(cause: serde_json::Error) -> (Box::new(cause))
         }
     }
 }

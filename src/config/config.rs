@@ -15,7 +15,8 @@ pub struct ApplicationConfig {
 pub struct ElasticSearchServer {
     pub name:   String,
     pub server: String,
-    pub default_index: Option<String>
+    pub default_index: Option<String>,
+    pub skip_path: Option<String>
 }
 
 impl ApplicationConfig {
@@ -29,7 +30,7 @@ impl ApplicationConfig {
     }
 
     pub fn load_file(path: &str) -> Result<ApplicationConfig, Error> {
-        debug!("Loading config from: {}", path);
+        info!("Loading config from: {}", path);
 
         File::open(path)
             .map_err(From::from)
