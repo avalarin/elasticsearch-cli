@@ -1,4 +1,4 @@
-extern crate clap; 
+#[macro_use] extern crate clap; 
 #[macro_use] extern crate serde_derive;
 extern crate serde_yaml;
 #[macro_use] extern crate serde_json;
@@ -12,65 +12,72 @@ extern crate strfmt;
 mod config;
 mod commands;
 mod es;
+mod error;
 
 use std::str::FromStr;
-use clap::{App, Arg, ArgMatches, SubCommand};
-use config::ApplicationConfig;
+use clap::{App, ArgMatches};
+use config::{ApplicationConfig};
 use commands::{Command, CommandError};
 
 fn main() {
-    let matches = App::new("elastic-cli")
-       .version("0.1")
-       .about("Does great things!")
-       .author("Alexandr P.")
-       .arg(Arg::with_name("verbosity").short("v").multiple(true).help("Increase message verbosity"))
-       .arg(Arg::with_name("quiet").short("q").help("Silence all output"))
-       .arg_from_usage("--config=[FILE] 'Path to the configuration file'")
-       .arg_from_usage("--server=[SERVER] 'Server name'")
-       .subcommand(SubCommand::with_name("search")
-            .about("Search logs by the query")
-            .arg_from_usage("-p, --period=[PEROID] 'For example: today, week, month'")
-            .arg_from_usage("-i, --index=[INDEX] 'Elasticsearch index or index pattern'")
-            .arg_from_usage("-q, --query=[QUERY] 'Query'")
-            .arg_from_usage("--skip=[SKIP] 'Base'")
-            .arg_from_usage("-f, --fields=[FIELDS] 'Fields'")
-            .arg_from_usage("-o, --output=[OUTPUT] 'Output format'"))
-       .get_matches();
+    match run_application() {
+        Err(cause) => {
+            error!("{}", cause);
+            std::process::exit(1);
+        }
+        _ => { }
+    }
+}
 
-    let verbose = matches.occurrences_of("verbosity") as usize;
-    let quiet = matches.is_present("quiet");
+fn run_application() -> Result<(), error::ApplicationError> {
+    let yaml = load_yaml!("app.yaml");
+    let app = App::from_yaml(yaml);
+    let args = app.get_matches();
+
+    configure_logger(&args)?;
+
+    let config = args.value_of("config")
+        .map_or_else(ApplicationConfig::load_default, ApplicationConfig::load_file)
+        .map_err(|cause| error::ApplicationError::GeneralError(Box::new(cause)))?;
+
+    match args.subcommand() {
+        ("search", Some(sub_match)) => execute_search(config, &args, sub_match),
+        ("config", Some(sub_match)) => execute_config(config, sub_match),
+        _ => { 
+            println!("{}", args.usage());
+            Ok(())
+        }
+    }.map_err(|cause| error::ApplicationError::GeneralError(Box::new(cause)))
+}
+
+fn configure_logger(args: &ArgMatches) -> Result<(), error::ApplicationError> {
+    let verbose = args.occurrences_of("verbosity") as usize;
+    let quiet = args.is_present("quiet");
     stderrlog::new()
         .module(module_path!())
         .quiet(quiet)
         .verbosity(verbose + 1)
         .init()
-        .expect("Cannot initialize logger");
-
-    let config = matches.value_of("config")
-        .map_or_else(ApplicationConfig::load_default, ApplicationConfig::load_file)
-        .expect("Cannot load config");
-
-    let server_name = matches.value_of("server").unwrap_or(&config.default_server);
-    let server = config.get_server(server_name).expect("Cannot find server");
-    info!("Using server {} ({})", server_name, server.server);
-
-    match matches.subcommand() {
-        ("search", Some(sub_m)) => execute_search(server, sub_m),
-        _ => { 
-            println!("{}", matches.usage());
-            Ok(())
-        }
-    }.expect("Cannot execute command");
+        .map_err(|cause| error::ApplicationError::GeneralError(Box::new(cause)))
 }
 
-fn execute_search(server: &config::ElasticSearchServer, sub_match: &ArgMatches) -> Result<(), commands::CommandError> {
+fn execute_search(config: config::ApplicationConfig, matches: &ArgMatches, sub_match: &ArgMatches) -> Result<(), commands::CommandError> {
+    let server = config.get_server(matches.value_of("server"))
+        .ok_or(CommandError::InvalidArgument("server not found"))?;
+        
+    info!("Using server {}", server.server);
+
     let query = sub_match.value_of("query").ok_or(CommandError::InvalidArgument("query required"))?;
     let index = sub_match.value_of("index");
-    let skip_path = sub_match.value_of("skip");
+    let path = sub_match.value_of("path");
     let fields = sub_match.value_of("fields").map(|f| f.split(",").collect());
     let output_format = sub_match.value_of("output")
                 .map(commands::OutputFormat::from_str)
                 .unwrap_or(Ok(commands::OutputFormat::Pretty()))?;
-    let mut command = commands::SearchCommand::new(server, index, query, skip_path, fields, output_format);
+    let mut command = commands::SearchCommand::new(server, index, query, path, fields, output_format);
     command.execute()
+}
+
+fn execute_config(config: ApplicationConfig, sub_m: &ArgMatches) -> Result<(), commands::CommandError> {
+    commands::ConfigCommand::parse(config, sub_m)?.execute()
 }

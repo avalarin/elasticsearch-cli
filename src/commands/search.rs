@@ -14,7 +14,7 @@ pub struct SearchCommand {
 
     pub query: String,
     pub index: Option<String>,
-    pub skip_path: Option<String>,
+    pub path: Option<String>,
     pub fields: Option<HashSet<String>>,
     pub output_format: OutputFormat,
 
@@ -50,7 +50,7 @@ impl SearchCommand {
         server_config: &ElasticSearchServer, 
         index: Option<S1>, 
         query: S2, 
-        skip_path: Option<S3>, 
+        path: Option<S3>, 
         fields: Option<Vec<S4>>, 
         output_format: OutputFormat
     ) -> Self where S1: Into<String>, S2: Into<String>, S3: Into<String>, S4: Into<String> + Clone
@@ -59,7 +59,7 @@ impl SearchCommand {
             server_config: server_config.clone(),
             query: query.into(),
             index: index.map(Into::into),
-            skip_path: skip_path.map(Into::into),
+            path: path.map(Into::into),
             fields: fields.map(|f| f.iter().cloned().map(|s| s.into()).collect::<Vec<String>>())
                           .map(HashSet::from_iter),
             output_format: output_format,
@@ -79,13 +79,13 @@ impl SearchCommand {
             .unwrap_or(true)
     }
 
-    fn get_skip_path(&self) -> Option<String> {
-        self.skip_path.clone()
-            .or(self.server_config.skip_path.clone())
+    fn get_path(&self) -> Option<String> {
+        self.path.clone()
+            .or(self.server_config.default_path.clone())
     }
 
-    fn try_skip_path<'a>(&self, value: &'a serde_json::Value) -> &'a serde_json::Value {
-        match (self.get_skip_path(), value) {
+    fn get_by_path<'a>(&self, value: &'a serde_json::Value) -> &'a serde_json::Value {
+        match (self.get_path(), value) {
             (Some(ref path), &serde_json::Value::Object(ref object)) => &object[path],
             _ => value
         }
@@ -94,7 +94,7 @@ impl SearchCommand {
     fn collect(&mut self, response: es::EsResponse) {
         for hit in response.hits.hits.iter() {
             let mut map = HashMap::new();
-            let skipped = self.try_skip_path(hit);
+            let skipped = self.get_by_path(hit);
             self.collect_hit(vec![], skipped, &mut map);
 
             let max_length = map.iter().map(|(k, _)| k.len()).max().unwrap_or(0);

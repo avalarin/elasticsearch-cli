@@ -1,0 +1,89 @@
+name: elastic-cli
+about: Command line interface for Elasticsearch
+author: Alexandr P. <avalarin@gmail.com>
+
+args:
+  - verbosity:
+      help: "Increase message verbosity"
+      short: v
+      multiple: true
+  - quiet:
+      help: "Silence all output"
+      short: q
+  - config:
+      help: "Path to the configuration file"
+      long: config
+      takes_value: true
+  - server:
+      help: "Elasticsearch server name"
+      long: server
+      takes_value: true
+
+subcommands:
+  - search:
+      about: "Search logs by the query"
+      args:
+        - path:
+            help: "Base"
+            long: path
+            takes_value: true
+        - index:
+            help: "Elasticsearch index or index pattern"
+            long: index
+            short: i
+            takes_value: true
+        - query:
+            help: "Query"
+            long: query
+            short: q
+            takes_value: true
+        - fields:
+            help: "Fields"
+            long: fields
+            short: f
+            takes_value: true
+        - output:
+            help: "Output format"
+            long: output
+            short: o
+            takes_value: true
+  - config:
+      about: "Configure"
+      subcommands:
+        - add:
+            subcommands:
+              - server:
+                  args:
+                    - name:
+                        help: "Server name"
+                        index: 1
+                    - address:
+                        help: "Server address"
+                        long: address
+                        takes_value: true
+                    - index:
+                        help: "Default index"
+                        long: index
+                        takes_value: true
+        - update:
+            subcommands:
+              - server:
+                  args:
+                    - name:
+                        help: "Server name"
+                        index: 1
+                    - address:
+                        help: "Server address"
+                        long: address
+                        takes_value: true
+                    - index:
+                        help: "Default index"
+                        long: index
+                        takes_value: true
+        - use:
+            subcommands:
+              - server:
+                  args:
+                    - name:
+                        help: "Server name"
+                        index: 1
