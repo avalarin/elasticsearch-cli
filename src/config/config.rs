@@ -61,14 +61,19 @@ impl ApplicationConfig {
             })
     }
 
-    pub fn get_server<S>(&self, name: Option<S>) -> Option<&ElasticSearchServer> where S: Into<String> {
+    pub fn get_server<S>(&self, name: Option<S>) -> Result<&ElasticSearchServer, config::GetServerError> where S: Into<String> {
+        if self.servers.is_empty() {
+            return Err(config::GetServerError::NoConfiguredServers);
+        }
+        
         let server_name = match (name, &self.default_server) {
             (Some(s_name), _) => s_name.into(),
             (None, &Some(ref s_name)) => s_name.to_owned(),
-            _ => return None
+            _ => return Err(config::GetServerError::ServerNotSpecified)
         };
 
         return self.servers.iter().find(|server| server.name == server_name)
+            .ok_or(config::GetServerError::ServerNotFound(server_name.clone()))
     }
 
     pub fn save_file(&self) -> Result<(), config::Error> {

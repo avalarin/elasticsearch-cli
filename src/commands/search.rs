@@ -189,7 +189,11 @@ impl Command<CommandError> for SearchCommand {
 
         info!("Sending request to {}: {}", url, req);
         
-        let resp = client.post(url).body(req).send()?;
+        let resp = client.post(url).body(req).send()
+            .map_err(|err| {
+                error!("{}", err);
+                err
+            })?;
 
         let parsed = parse(resp)?;
 

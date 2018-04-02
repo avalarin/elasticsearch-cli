@@ -62,10 +62,24 @@ fn configure_logger(args: &ArgMatches) -> Result<(), error::ApplicationError> {
 }
 
 fn execute_search(config: config::ApplicationConfig, matches: &ArgMatches, sub_match: &ArgMatches) -> Result<(), commands::CommandError> {
-    let server = config.get_server(matches.value_of("server"))
-        .ok_or(CommandError::InvalidArgument("server not found"))?;
-        
-    info!("Using server {}", server.server);
+    let server = match config.get_server(matches.value_of("server")) {
+        Ok(server) => server,
+        Err(config::GetServerError::ServerNotFound(name)) => {
+            error!("Server with name '{}' not found", name);
+            return Ok(())
+        },
+        Err(config::GetServerError::ServerNotSpecified) => {
+            error!("The server is not specified.");
+            error!("Hint: use 'elastic-cli config use server <name>'");
+            error!("Hint: use option --server, e.g. 'elastic-cli --server <name> search ...'");
+            return Ok(())
+        },
+        Err(config::GetServerError::NoConfiguredServers) => {
+            error!("There are no servers in the config file");
+            error!("Hint: use 'elastic-cli config add server <name> --address <address>'");
+            return Ok(())
+        }
+    };
 
     let query = sub_match.value_of("query").ok_or(CommandError::InvalidArgument("query required"))?;
     let index = sub_match.value_of("index");

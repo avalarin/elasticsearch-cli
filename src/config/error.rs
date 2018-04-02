@@ -3,6 +3,24 @@ extern crate serde_yaml;
 use std;
 use std::fmt;
 
+quick_error! {
+    #[derive(Debug)]
+    pub enum GetServerError {
+        ServerNotFound(server: String) {
+            description("Server {} not found")
+            display("Server {} not found", server)
+        }
+        NoConfiguredServers {
+            description("No servers configured")
+            display("No servers configured")
+        }
+        ServerNotSpecified {
+            description("Server not specified")
+            display("Server not specified")
+        }
+    }
+}
+
 pub enum Error {
     YamlError(Box<std::error::Error>),
     FileSystemError(Box<std::error::Error>),
