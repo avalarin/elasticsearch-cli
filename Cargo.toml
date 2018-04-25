@@ -1,6 +1,6 @@
 [package]
 name = "elastic-cli"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Prokopev Alexandr <a.prokopev@qiwi.com>"]
 
 [dependencies]
