@@ -19,8 +19,7 @@ pub struct ApplicationConfig {
 pub struct ElasticSearchServer {
     pub name:   String,
     pub server: String,
-    pub default_index: Option<String>,
-    pub default_path: Option<String>
+    pub default_index: Option<String>
 }
 
 impl ApplicationConfig {

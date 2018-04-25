@@ -1,4 +1,5 @@
 #[macro_use] extern crate clap; 
+extern crate elastic;
 #[macro_use] extern crate serde_derive;
 extern crate serde_yaml;
 #[macro_use] extern crate serde_json;
@@ -11,7 +12,6 @@ extern crate strfmt;
 
 mod config;
 mod commands;
-mod es;
 mod error;
 
 use std::str::FromStr;
@@ -81,14 +81,15 @@ fn execute_search(config: config::ApplicationConfig, matches: &ArgMatches, sub_m
         }
     };
 
+    let size = sub_match.value_of("size").map(str::parse).unwrap_or(Ok(1000)).map_err(|_| CommandError::InvalidArgument("size has invalid value"))?;
+    let buffer_size = sub_match.value_of("buffer").map(str::parse).unwrap_or(Ok(1000)).map_err(|_| CommandError::InvalidArgument("buffer has invalid value"))?;
     let query = sub_match.value_of("query").ok_or(CommandError::InvalidArgument("query required"))?;
     let index = sub_match.value_of("index");
-    let path = sub_match.value_of("path");
     let fields = sub_match.value_of("fields").map(|f| f.split(",").collect());
     let output_format = sub_match.value_of("output")
                 .map(commands::OutputFormat::from_str)
                 .unwrap_or(Ok(commands::OutputFormat::Pretty()))?;
-    let mut command = commands::SearchCommand::new(server, index, query, path, fields, output_format);
+    let mut command = commands::SearchCommand::new(buffer_size, size, server, index, query, fields, output_format);
     command.execute()
 }
 

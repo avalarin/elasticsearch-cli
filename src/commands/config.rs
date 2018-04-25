@@ -73,8 +73,7 @@ impl Command<CommandError> for ConfigCommand {
                 self.config.servers.push(ElasticSearchServer {
                     name,
                     server: address,
-                    default_index: index,
-                    default_path: Some("_source".to_owned())
+                    default_index: index
                 });
             },
             ConfigAction::UpdateServer{name, address, index} => {

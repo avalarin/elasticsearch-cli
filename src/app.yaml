@@ -23,10 +23,6 @@ subcommands:
   - search:
       about: "Search logs by the query"
       args:
-        - path:
-            help: "Base"
-            long: path
-            takes_value: true
         - index:
             help: "Elasticsearch index or index pattern"
             long: index
@@ -47,6 +43,17 @@ subcommands:
             long: output
             short: o
             takes_value: true
+        - size:
+            help: "Count of result for fetch"
+            long: size
+            default_value: "1000"
+            takes_value: true
+        - buffer:
+            help: "Buffer size"
+            long: buffer
+            default_value: "1000"
+            takes_value: true
+        
   - config:
       about: "Configure"
       subcommands:

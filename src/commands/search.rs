@@ -1,24 +1,24 @@
 use config::ElasticSearchServer;
 use commands::{Command, CommandError};
-use reqwest;
 use serde_json;
-use es;
 use colored::*;
-use std::collections::{HashSet, HashMap, BTreeSet};
-use std::iter::{FromIterator};
+use std::collections::{HashSet, HashMap};
+use std::iter::{FromIterator, Iterator};
 use std::str::FromStr;
 use strfmt::strfmt;
+use elastic::prelude::*;
 
 pub struct SearchCommand {
     pub server_config: ElasticSearchServer,
 
+    pub buffer_size: i32,
+    pub size: i32,
     pub query: String,
     pub index: Option<String>,
-    pub path: Option<String>,
     pub fields: Option<HashSet<String>>,
     pub output_format: OutputFormat,
 
-    results: Vec<SearchItem>
+    from: u64
 }
 
 pub enum OutputFormat {
@@ -39,31 +39,28 @@ impl FromStr for OutputFormat {
     }
 }
 
-struct SearchItem {
-    keys_max_length: usize,
-    fields: HashMap<String, String>,
-    json: serde_json::Value
-}
-
 impl SearchCommand {
-    pub fn new<S1, S2, S3, S4>(
+    pub fn new<S1, S2, S3>(
+        buffer_size: i32,
+        size: i32,
         server_config: &ElasticSearchServer, 
         index: Option<S1>, 
-        query: S2, 
-        path: Option<S3>, 
-        fields: Option<Vec<S4>>, 
+        query: S2,
+        fields: Option<Vec<S3>>, 
         output_format: OutputFormat
-    ) -> Self where S1: Into<String>, S2: Into<String>, S3: Into<String>, S4: Into<String> + Clone
+    ) -> Self 
+    where S1: Into<String>, S2: Into<String>, S3: Into<String> + Clone
     {
         SearchCommand {
+            buffer_size: buffer_size,
+            size: size,
             server_config: server_config.clone(),
             query: query.into(),
             index: index.map(Into::into),
-            path: path.map(Into::into),
             fields: fields.map(|f| f.iter().cloned().map(|s| s.into()).collect::<Vec<String>>())
                           .map(HashSet::from_iter),
             output_format: output_format,
-            results: vec![]
+            from: 0
         }
     }
 
@@ -79,32 +76,50 @@ impl SearchCommand {
             .unwrap_or(true)
     }
 
-    fn get_path(&self) -> Option<String> {
-        self.path.clone()
-            .or(self.server_config.default_path.clone())
+    fn query_next(&mut self) -> Result<bool, CommandError> {
+        let index = self.get_index()?;
+
+        let client = SyncClientBuilder::new()
+            .base_url(self.server_config.server.as_ref())
+            .build()
+            .map_err(|err| {
+                error!("Cannot create elasticsearch client: {}", err);
+                CommandError::CommonError(Box::new(err))
+            })?;
+
+        let resp = client.search::<serde_json::Value>()
+            .index(index)
+            .body(json!({
+                "size": self.buffer_size,
+                "from": self.from,
+                "query": {
+                    "query_string" : {
+                        "query" : self.query
+                    }
+                }
+            }))
+            .send()
+            .map_err(|err| {
+                error!("Cannot read response from elasticsearch: {}", err);
+                CommandError::CommonError(Box::new(err))
+            })?;
+
+        let total_count = resp.total();
+        let result_count = resp.documents().count() as u64;
+        info!("Loaded {}/{} results", self.from + result_count, total_count);
+
+        resp.documents()
+            .enumerate()
+            .for_each(|(index, item)| self.display(index, item));
+
+        self.from = self.from + result_count;
+        Ok(self.from != total_count)
     }
 
-    fn get_by_path<'a>(&self, value: &'a serde_json::Value) -> &'a serde_json::Value {
-        match (self.get_path(), value) {
-            (Some(ref path), &serde_json::Value::Object(ref object)) => &object[path],
-            _ => value
-        }
-    }
-
-    fn collect(&mut self, response: es::EsResponse) {
-        for hit in response.hits.hits.iter() {
-            let mut map = HashMap::new();
-            let skipped = self.get_by_path(hit);
-            self.collect_hit(vec![], skipped, &mut map);
-
-            let max_length = map.iter().map(|(k, _)| k.len()).max().unwrap_or(0);
-            let item = SearchItem { 
-                fields: map,
-                keys_max_length: max_length,
-                json: skipped.clone()
-            };
-            self.results.push(item);
-        }
+    fn collect(&self, document: &serde_json::Value) -> HashMap<String, String> {
+        let mut map = HashMap::new();
+        self.collect_hit(vec![], document, &mut map);
+        map
     }
 
     fn collect_hit(&self, path: Vec<String>, hit: &serde_json::Value, map: &mut HashMap<String, String>) {
@@ -132,27 +147,23 @@ impl SearchCommand {
         }
     }
 
-    fn display_pretty(&self) {
-        for (index, item) in self.results.iter().enumerate() {
-            if index > 0 {
-                println!("{}", "-".repeat(item.keys_max_length).blue().bold());
+    fn display(&self, index: usize, item: &serde_json::Value) {
+        match self.output_format {
+            OutputFormat::JSON() => {
+                println!("{}", item)
             }
-            for key in item.fields.keys().collect::<BTreeSet<&String>>() {
-                println!("{:indent$}: {}", key.green().bold(), self.format_string(&item.fields[key]), indent=item.keys_max_length);
+            OutputFormat::Pretty() => {
+                if index > 0 {
+                    println!("{}", "-".repeat(4).blue().bold());
+                }
+                for (key, value) in &self.collect(item) {
+                    println!("{}: {}", key.green().bold(), self.format_string(&value));
+                }
             }
-        }
-    }
-
-    fn display_json(&self) {
-        for item in self.results.iter() {
-            println!("{}", item.json);
-        }
-    }
-
-    fn display_custom(&self, format: &str) {
-        for item in self.results.iter() {
-            println!("{}", strfmt(format, &item.fields).unwrap_or("Cannot format item".to_owned()));
-        }
+            OutputFormat::Custom(ref format) => {
+                println!("{}", strfmt(format, &self.collect(item)).unwrap_or("Cannot format item".to_owned()));
+            }
+        };
     }
 
     fn prepare_primitive(&self, value: &serde_json::Value) -> String {
@@ -175,44 +186,8 @@ impl Command<CommandError> for SearchCommand {
         let index = self.get_index()?;
         info!("Executing search {} on index {}", self.query, index);
 
-        let client = reqwest::Client::new();
-        let url = reqwest::Url::parse(self.server_config.server.as_ref())
-            .and_then(|u| u.join(&format!("{}/_search", index)))?;
-
-        let req = json!({
-            "query": {
-                "query_string" : {
-                    "query" : self.query
-                }
-            }
-        }).to_string();
-
-        info!("Sending request to {}: {}", url, req);
-        
-        let resp = client.post(url).body(req).send()
-            .map_err(|err| {
-                error!("{}", err);
-                err
-            })?;
-
-        let parsed = parse(resp)?;
-
-        info!("Found {} results", parsed.hits.total);
-
-        self.collect(parsed);
-
-        match self.output_format {
-            OutputFormat::Pretty() => self.display_pretty(),
-            OutputFormat::JSON() => self.display_json(),
-            OutputFormat::Custom(ref format) => self.display_custom(format)
-        };
+        while self.query_next()? {};
 
         Ok(())
     }
-}
-
-fn parse(mut resp: reqwest::Response) -> Result<es::EsResponse, CommandError> {
-    resp.text()
-        .map_err(From::from)
-        .and_then(|json| serde_json::from_str(json.as_ref()).map_err(From::from))
 }
