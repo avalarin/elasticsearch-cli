@@ -11,7 +11,7 @@ TBD
 
 TBD
 
-### From archieve
+### From archive
 
 * Download the latest release from the [releases page](https://github.com/avalarin/elasticsearch-cli/releases/latest)
 * Unpack it to the executable files directory (e.g. /usr/local/bin)
