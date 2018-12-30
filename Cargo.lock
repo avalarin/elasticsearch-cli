@@ -265,7 +265,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "elastic"
-version = "0.20.9"
+version = "0.20.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "elastic_reqwest 0.20.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -279,18 +279,18 @@ dependencies = [
  "serde_derive 1.0.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-core 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "uuid 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "uuid 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "elastic-cli"
-version = "0.1.5"
+version = "0.2.0"
 dependencies = [
  "clap 2.31.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "colored 1.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dirs 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "elastic 0.20.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "elastic_derive 0.20.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic 0.20.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic_derive 0.20.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quick-error 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.8.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -304,7 +304,7 @@ dependencies = [
 
 [[package]]
 name = "elastic_derive"
-version = "0.20.9"
+version = "0.20.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "elastic_types_derive_internals 0.20.9 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1557,6 +1557,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "uuid"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "cfg-if 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "vcpkg"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1669,8 +1678,8 @@ dependencies = [
 "checksum crossbeam-utils 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "d636a8b3bcc1b409d7ffd3facef8f21dcb4009626adbd0c5e6c4305c07253c7b"
 "checksum dirs 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "88972de891f6118092b643d85a0b28e0678e0f948d7f879aa32f2d5aafe97d2a"
 "checksum dtoa 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "09c3753c3db574d215cba4ea76018483895d7bff25a31b49ba45db21c48e50ab"
-"checksum elastic 0.20.9 (registry+https://github.com/rust-lang/crates.io-index)" = "6aa059d90c25191fcc37eb7bc154d40e0f19e491fb2a9911486a9a67b5111b35"
-"checksum elastic_derive 0.20.9 (registry+https://github.com/rust-lang/crates.io-index)" = "dcf9b8f1c98267846d9ccb65b4e5cd316e4260fda234b51d130649a1a2300a70"
+"checksum elastic 0.20.10 (registry+https://github.com/rust-lang/crates.io-index)" = "03978a34da45e1e7b13a553bd8eeb2f3b58f28e12dbca312c567b142c4b80ef1"
+"checksum elastic_derive 0.20.10 (registry+https://github.com/rust-lang/crates.io-index)" = "77e06adf91996c0759a918c3737f1881835be925e94800502fdc26ea1d9cb25a"
 "checksum elastic_requests 0.20.9 (registry+https://github.com/rust-lang/crates.io-index)" = "1cc929c5e2da0ce6cfae670ba96c41aa968a33dc0b21d9215c081458fb2b7091"
 "checksum elastic_reqwest 0.20.9 (registry+https://github.com/rust-lang/crates.io-index)" = "9c6b71eee3a3233b3ebf47e91fc96ebed891e23393e1b24b979230c181045c5c"
 "checksum elastic_responses 0.20.9 (registry+https://github.com/rust-lang/crates.io-index)" = "79b38bdd036483c692830a7c5b21f01522c3bc052861e1de7a45eca908d659f0"
@@ -1813,6 +1822,7 @@ dependencies = [
 "checksum unreachable 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "382810877fe448991dfc7f0dd6e3ae5d58088fd0ea5e35189655f84e6814fa56"
 "checksum url 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f808aadd8cfec6ef90e4a14eb46f24511824d1ac596b9682703c87056c8678b7"
 "checksum uuid 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bcc7e3b898aa6f6c08e5295b6c89258d1331e9ac578cc992fb818759951bdc22"
+"checksum uuid 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e1436e58182935dcd9ce0add9ea0b558e8a87befe01c1a301e6020aeb0876363"
 "checksum vcpkg 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9e0a7d8bed3178a8fb112199d466eeca9ed09a14ba8ad67718179b4fd5487d0b"
 "checksum vec_map 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "887b5b631c2ad01628bbbaa7dd4c869f80d3186688f8d0b6f58774fbe324988c"
 "checksum version_check 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "6b772017e347561807c1aa192438c5fd74242a670a6cffacc40f2defd1dc069d"
