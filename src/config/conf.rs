@@ -1,31 +1,30 @@
 use std::fs::{File, OpenOptions};
 use std::vec::Vec;
-use std::env;
 use std::path::{Path, PathBuf};
 use std::io::Write;
 use config;
 use serde_yaml;
+use dirs;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct ApplicationConfig {
-    #[serde(skip_deserializing,skip_serializing)]
+    #[serde(skip_deserializing, skip_serializing)]
     pub file_path: String,
 
     pub default_server: Option<String>,
-    pub servers: Vec<ElasticSearchServer>
+    pub servers: Vec<ElasticSearchServer>,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct ElasticSearchServer {
-    pub name:   String,
+    pub name: String,
     pub server: String,
-    pub default_index: Option<String>
+    pub default_index: Option<String>,
 }
 
 impl ApplicationConfig {
-
     pub fn load_default() -> Result<ApplicationConfig, config::Error> {
-        env::home_dir()
+        dirs::home_dir()
             .ok_or(config::Error::CannotFindHomeDirectory())
             .map(|home_dir| home_dir.join(PathBuf::from(".elastic-cli")).into_os_string())
             .and_then(|os_str| os_str.into_string().map_err(|_| config::Error::CannotFindHomeDirectory()))
@@ -35,12 +34,12 @@ impl ApplicationConfig {
     fn load_file_or_create(path: &str) -> Result<ApplicationConfig, config::Error> {
         if !Path::new(path).exists() {
             warn!("File {} does not exist, creating...", path);
-            let config = ApplicationConfig{
+            let config = ApplicationConfig {
                 file_path: path.to_owned(),
                 default_server: None,
-                servers: vec![]
+                servers: vec![],
             };
-            return config.save_file().map(|_| config)
+            return config.save_file().map(|_| config);
         }
         ApplicationConfig::load_file(path)
     }
@@ -64,15 +63,15 @@ impl ApplicationConfig {
         if self.servers.is_empty() {
             return Err(config::GetServerError::NoConfiguredServers);
         }
-        
+
         let server_name = match (name, &self.default_server) {
             (Some(s_name), _) => s_name.into(),
             (None, &Some(ref s_name)) => s_name.to_owned(),
             _ => return Err(config::GetServerError::ServerNotSpecified)
         };
 
-        return self.servers.iter().find(|server| server.name == server_name)
-            .ok_or(config::GetServerError::ServerNotFound(server_name.clone()))
+        self.servers.iter().find(|server| server.name == server_name)
+            .ok_or_else(||config::GetServerError::ServerNotFound(server_name.clone()))
     }
 
     pub fn save_file(&self) -> Result<(), config::Error> {
@@ -100,5 +99,4 @@ impl ApplicationConfig {
             })
         }
     }
-
 }

@@ -43,30 +43,30 @@ impl SearchCommand {
     pub fn new<S1, S2, S3>(
         buffer_size: i32,
         size: i32,
-        server_config: &ElasticSearchServer, 
-        index: Option<S1>, 
+        server_config: &ElasticSearchServer,
+        index: Option<S1>,
         query: S2,
-        fields: Option<Vec<S3>>, 
+        fields: Option<Vec<S3>>,
         output_format: OutputFormat
-    ) -> Self 
+    ) -> Self
     where S1: Into<String>, S2: Into<String>, S3: Into<String> + Clone
     {
         SearchCommand {
-            buffer_size: buffer_size,
-            size: size,
+            buffer_size,
+            size,
             server_config: server_config.clone(),
             query: query.into(),
             index: index.map(Into::into),
             fields: fields.map(|f| f.iter().cloned().map(|s| s.into()).collect::<Vec<String>>())
                           .map(HashSet::from_iter),
-            output_format: output_format,
+            output_format,
             from: 0
         }
     }
 
     fn get_index(&self) -> Result<String, CommandError> {
         self.index.clone()
-            .or(self.server_config.default_index.clone())
+            .or_else(||self.server_config.default_index.clone())
             .ok_or(CommandError::InvalidArgument("index required"))
     }
 
@@ -112,30 +112,30 @@ impl SearchCommand {
             .enumerate()
             .for_each(|(index, item)| self.display(index, item));
 
-        self.from = self.from + result_count;
+        self.from += result_count;
         Ok(self.from != total_count)
     }
 
     fn collect(&self, document: &serde_json::Value) -> HashMap<String, String> {
         let mut map = HashMap::new();
-        self.collect_hit(vec![], document, &mut map);
+        self.collect_hit(&[], document, &mut map);
         map
     }
 
-    fn collect_hit(&self, path: Vec<String>, hit: &serde_json::Value, map: &mut HashMap<String, String>) {
+    fn collect_hit(&self, path: &[String], hit: &serde_json::Value, map: &mut HashMap<String, String>) {
         match hit {
             &serde_json::Value::Object(ref object) => {
                 for (key, value) in object {
-                    let mut new_path = path.clone();
+                    let mut new_path = path.to_owned();
                     new_path.push(key.clone());
-                    self.collect_hit(new_path, &value, map);
+                    self.collect_hit(&new_path, &value, map);
                 }
             },
             &serde_json::Value::Array(ref array) => {
                 for (index, value) in array.iter().enumerate() {
-                    let mut new_path = path.clone();
+                    let mut new_path = path.to_owned();
                     new_path.push(index.to_string());
-                    self.collect_hit(new_path, &value, map);
+                    self.collect_hit(&new_path, &value, map);
                 }
             },
             primitive => {
@@ -161,20 +161,20 @@ impl SearchCommand {
                 }
             }
             OutputFormat::Custom(ref format) => {
-                println!("{}", strfmt(format, &self.collect(item)).unwrap_or("Cannot format item".to_owned()));
+                println!("{}", strfmt(format, &self.collect(item)).unwrap_or_else(|_|"Cannot format item".to_owned()));
             }
         };
     }
 
     fn prepare_primitive(&self, value: &serde_json::Value) -> String {
         match value {
-            &serde_json::Value::String(ref str_value) => format!("{}", str_value),
-            primitive => format!("{}", primitive)
+            &serde_json::Value::String(ref str_value) => str_value.to_string(),
+            primitive => primitive.to_string()
         }
     }
 
     fn format_string(&self, value: &str) -> String {
-        Some(value.into())
+        Some(value)
             .map(|s| str::replace(s, "\\n", "\n"))
             .map(|s| str::replace(&s, "\\t", "\t"))
             .unwrap()

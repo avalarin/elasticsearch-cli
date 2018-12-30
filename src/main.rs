@@ -1,14 +1,20 @@
-#[macro_use] extern crate clap; 
+#[macro_use]
+extern crate clap;
 extern crate elastic;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_yaml;
-#[macro_use] extern crate serde_json;
+#[macro_use]
+extern crate serde_json;
 extern crate stderrlog;
-#[macro_use] extern crate log;
-#[macro_use] extern crate quick_error;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate quick_error;
 extern crate reqwest;
 extern crate colored;
 extern crate strfmt;
+extern crate dirs;
 
 mod config;
 mod commands;
@@ -16,16 +22,13 @@ mod error;
 
 use std::str::FromStr;
 use clap::{App, ArgMatches};
-use config::{ApplicationConfig};
+use config::ApplicationConfig;
 use commands::{Command, CommandError};
 
 fn main() {
-    match run_application() {
-        Err(cause) => {
-            error!("{}", cause);
-            std::process::exit(1);
-        }
-        _ => { }
+    if let Err(cause) = run_application() {
+        error!("{}", cause);
+        std::process::exit(1);
     }
 }
 
@@ -41,9 +44,9 @@ fn run_application() -> Result<(), error::ApplicationError> {
         .map_err(|cause| error::ApplicationError::GeneralError(Box::new(cause)))?;
 
     match args.subcommand() {
-        ("search", Some(sub_match)) => execute_search(config, &args, sub_match),
+        ("search", Some(sub_match)) => execute_search(&config, &args, sub_match),
         ("config", Some(sub_match)) => execute_config(config, sub_match),
-        _ => { 
+        _ => {
             println!("{}", args.usage());
             Ok(())
         }
@@ -61,23 +64,23 @@ fn configure_logger(args: &ArgMatches) -> Result<(), error::ApplicationError> {
         .map_err(|cause| error::ApplicationError::GeneralError(Box::new(cause)))
 }
 
-fn execute_search(config: config::ApplicationConfig, matches: &ArgMatches, sub_match: &ArgMatches) -> Result<(), commands::CommandError> {
+fn execute_search(config: &config::ApplicationConfig, matches: &ArgMatches, sub_match: &ArgMatches) -> Result<(), commands::CommandError> {
     let server = match config.get_server(matches.value_of("server")) {
         Ok(server) => server,
         Err(config::GetServerError::ServerNotFound(name)) => {
             error!("Server with name '{}' not found", name);
-            return Ok(())
-        },
+            return Ok(());
+        }
         Err(config::GetServerError::ServerNotSpecified) => {
             error!("The server is not specified.");
             error!("Hint: use 'elastic-cli config use server <name>'");
             error!("Hint: use option --server, e.g. 'elastic-cli --server <name> search ...'");
-            return Ok(())
-        },
+            return Ok(());
+        }
         Err(config::GetServerError::NoConfiguredServers) => {
             error!("There are no servers in the config file");
             error!("Hint: use 'elastic-cli config add server <name> --address <address>'");
-            return Ok(())
+            return Ok(());
         }
     };
 
@@ -85,10 +88,10 @@ fn execute_search(config: config::ApplicationConfig, matches: &ArgMatches, sub_m
     let buffer_size = sub_match.value_of("buffer").map(str::parse).unwrap_or(Ok(1000)).map_err(|_| CommandError::InvalidArgument("buffer has invalid value"))?;
     let query = sub_match.value_of("query").ok_or(CommandError::InvalidArgument("query required"))?;
     let index = sub_match.value_of("index");
-    let fields = sub_match.value_of("fields").map(|f| f.split(",").collect());
+    let fields = sub_match.value_of("fields").map(|f| f.split(',').collect());
     let output_format = sub_match.value_of("output")
-                .map(commands::OutputFormat::from_str)
-                .unwrap_or(Ok(commands::OutputFormat::Pretty()))?;
+        .map(commands::OutputFormat::from_str)
+        .unwrap_or(Ok(commands::OutputFormat::Pretty()))?;
     let mut command = commands::SearchCommand::new(buffer_size, size, server, index, query, fields, output_format);
     command.execute()
 }

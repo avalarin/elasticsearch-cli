@@ -64,7 +64,7 @@ impl Command<CommandError> for ConfigCommand {
     fn execute(&mut self) -> Result<(), CommandError> {
         match self.action.clone() {
             ConfigAction::AddServer{name, address, index} => {
-                if self.config.servers.iter().find(|server| server.name == name).is_some() {
+                if self.config.servers.iter().any(|server| server.name == name) {
                     return Err(CommandError::InvalidArgument("Server already exists"))
                 }
                 if self.config.default_server.is_none() {
@@ -80,7 +80,9 @@ impl Command<CommandError> for ConfigCommand {
                 let mut server = self.config.servers.iter_mut().find(|server| server.name == name)
                     .ok_or(CommandError::InvalidArgument("Server don't exists"))?;
                 
-                address.map(|addr| server.server = addr);
+                if let Some(addr) = address {
+                    server.server = addr
+                }
                 if index.is_some() {
                     server.default_index = index;
                 }
