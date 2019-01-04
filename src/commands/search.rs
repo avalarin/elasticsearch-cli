@@ -7,6 +7,7 @@ use std::iter::{FromIterator, Iterator};
 use std::str::FromStr;
 use strfmt::strfmt;
 use elastic::prelude::*;
+use elastic::http::header::{Authorization, Basic};
 
 pub struct SearchCommand {
     pub server_config: ElasticSearchServer,
@@ -18,13 +19,13 @@ pub struct SearchCommand {
     pub fields: Option<HashSet<String>>,
     pub output_format: OutputFormat,
 
-    from: u64
+    from: u64,
 }
 
 pub enum OutputFormat {
     Pretty(),
     JSON(),
-    Custom(String)
+    Custom(String),
 }
 
 impl FromStr for OutputFormat {
@@ -47,9 +48,9 @@ impl SearchCommand {
         index: Option<S1>,
         query: S2,
         fields: Option<Vec<S3>>,
-        output_format: OutputFormat
+        output_format: OutputFormat,
     ) -> Self
-    where S1: Into<String>, S2: Into<String>, S3: Into<String> + Clone
+        where S1: Into<String>, S2: Into<String>, S3: Into<String> + Clone
     {
         SearchCommand {
             buffer_size,
@@ -58,15 +59,15 @@ impl SearchCommand {
             query: query.into(),
             index: index.map(Into::into),
             fields: fields.map(|f| f.iter().cloned().map(|s| s.into()).collect::<Vec<String>>())
-                          .map(HashSet::from_iter),
+                .map(HashSet::from_iter),
             output_format,
-            from: 0
+            from: 0,
         }
     }
 
     fn get_index(&self) -> Result<String, CommandError> {
         self.index.clone()
-            .or_else(||self.server_config.default_index.clone())
+            .or_else(|| self.server_config.default_index.clone())
             .ok_or(CommandError::InvalidArgument("index required"))
     }
 
@@ -79,8 +80,27 @@ impl SearchCommand {
     fn query_next(&mut self) -> Result<bool, CommandError> {
         let index = self.get_index()?;
 
-        let client = SyncClientBuilder::new()
-            .base_url(self.server_config.server.as_ref())
+        let token = match &self.server_config.username {
+            Some(user) => match &self.server_config.password {
+                Some(pass) => Some(base64::encode(&format!("{}:{}", user, pass))),
+                None => Some(base64::encode(&format!("{}:", user)))
+            }
+            None => None
+        };
+
+        let mut builder = SyncClientBuilder::new();
+        if let Some(username) = &self.server_config.username {
+            builder = builder.params(
+                |p| {
+                    p.header(Authorization(Basic {
+                        username: username.to_owned(),
+                        password: self.server_config.password.clone(),
+                    }))
+                }
+            );
+        }
+
+        let client = builder.base_url(self.server_config.server.as_ref())
             .build()
             .map_err(|err| {
                 error!("Cannot create elasticsearch client: {}", err);
@@ -130,14 +150,14 @@ impl SearchCommand {
                     new_path.push(key.clone());
                     self.collect_hit(&new_path, &value, map);
                 }
-            },
+            }
             &serde_json::Value::Array(ref array) => {
                 for (index, value) in array.iter().enumerate() {
                     let mut new_path = path.to_owned();
                     new_path.push(index.to_string());
                     self.collect_hit(&new_path, &value, map);
                 }
-            },
+            }
             primitive => {
                 let str_prefix = path.join(".");
                 if self.is_field_ok(&str_prefix) {
@@ -161,7 +181,7 @@ impl SearchCommand {
                 }
             }
             OutputFormat::Custom(ref format) => {
-                println!("{}", strfmt(format, &self.collect(item)).unwrap_or_else(|_|"Cannot format item".to_owned()));
+                println!("{}", strfmt(format, &self.collect(item)).unwrap_or_else(|_| "Cannot format item".to_owned()));
             }
         };
     }

@@ -53,7 +53,7 @@ subcommands:
             long: buffer
             default_value: "1000"
             takes_value: true
-        
+
   - config:
       about: "Configure"
       subcommands:
@@ -71,6 +71,14 @@ subcommands:
                     - index:
                         help: "Default index"
                         long: index
+                        takes_value: true
+                    - username:
+                        help: "Optional username for basic auth"
+                        long: username
+                        takes_value: true
+                    - password:
+                        help: "Optional password for basic auth"
+                        long: password
                         takes_value: true
         - update:
             subcommands:
