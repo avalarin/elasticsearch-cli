@@ -12,7 +12,7 @@ pub struct ConfigCommand {
 #[derive(Clone)]
 pub enum ConfigAction {
     AddServer { name: String, address: String, index: Option<String>, username: Option<String>, password: Option<String> },
-    UpdateServer { name: String, address: Option<String>, index: Option<String> },
+    UpdateServer { name: String, address: Option<String>, index: Option<String>, username: Option<String>, password: Option<String> },
     UseServer { name: String },
 }
 
@@ -48,7 +48,15 @@ impl ConfigCommand {
                         let name = server_match.value_of("name").ok_or(CommandError::InvalidArgument("[name] is required"))?;
                         let address = server_match.value_of("address");
                         let index = server_match.value_of("index");
-                        Ok(ConfigAction::UpdateServer { name: name.to_owned(), address: address.map(str::to_owned), index: index.map(str::to_owned) })
+                        let username = server_match.value_of("username");
+                        let password = server_match.value_of("password");
+                        Ok(ConfigAction::UpdateServer {
+                            name: name.to_owned(),
+                            address: address.map(str::to_owned),
+                            index: index.map(str::to_owned),
+                            username: username.map(str::to_owned),
+                            password: password.map(str::to_owned),
+                        })
                     }
                     _ => { Err(CommandError::InvalidArgument("Unknown resource")) }
                 }
@@ -86,7 +94,7 @@ impl Command<CommandError> for ConfigCommand {
                     password,
                 });
             }
-            ConfigAction::UpdateServer { name, address, index } => {
+            ConfigAction::UpdateServer { name, address, index, username, password } => {
                 let mut server = self.config.servers.iter_mut().find(|server| server.name == name)
                     .ok_or(CommandError::InvalidArgument("Server don't exists"))?;
 
@@ -95,6 +103,12 @@ impl Command<CommandError> for ConfigCommand {
                 }
                 if index.is_some() {
                     server.default_index = index;
+                }
+                if username.is_some() {
+                    server.username = username;
+                }
+                if password.is_some() {
+                    server.password = password;
                 }
             }
             ConfigAction::UseServer { name } => {

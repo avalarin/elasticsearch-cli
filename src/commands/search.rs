@@ -80,6 +80,7 @@ impl SearchCommand {
     fn query_next(&mut self) -> Result<bool, CommandError> {
         let index = self.get_index()?;
 
+//        Placeholder for future Bearer Token auth
         let token = match &self.server_config.username {
             Some(user) => match &self.server_config.password {
                 Some(pass) => Some(base64::encode(&format!("{}:{}", user, pass))),
