@@ -20,6 +20,8 @@ pub struct ElasticSearchServer {
     pub name: String,
     pub server: String,
     pub default_index: Option<String>,
+    pub username: Option<String>,
+    pub password: Option<String>
 }
 
 impl ApplicationConfig {

@@ -1,6 +1,6 @@
 [package]
 name = "elastic-cli"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Prokopev Alexandr <a.prokopev@qiwi.com>"]
 
 [dependencies]
@@ -18,3 +18,4 @@ quick-error = "1.2.1"
 colored = "1.6"
 strfmt = "0.1.6"
 dirs = "^1.0.4"
+base64 = "^0.10"

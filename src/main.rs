@@ -15,6 +15,7 @@ extern crate reqwest;
 extern crate colored;
 extern crate strfmt;
 extern crate dirs;
+extern crate base64;
 
 mod config;
 mod commands;
