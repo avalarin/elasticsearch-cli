@@ -16,12 +16,15 @@ extern crate colored;
 extern crate strfmt;
 extern crate dirs;
 extern crate base64;
+#[macro_use]
+extern crate failure;
 
 mod config;
 mod commands;
 mod error;
+mod client;
+mod display;
 
-use std::str::FromStr;
 use clap::{App, ArgMatches};
 use config::ApplicationConfig;
 use commands::{Command, CommandError};
@@ -85,15 +88,13 @@ fn execute_search(config: &config::ApplicationConfig, matches: &ArgMatches, sub_
         }
     };
 
-    let size = sub_match.value_of("size").map(str::parse).unwrap_or(Ok(1000)).map_err(|_| CommandError::InvalidArgument("size has invalid value"))?;
-    let buffer_size = sub_match.value_of("buffer").map(str::parse).unwrap_or(Ok(1000)).map_err(|_| CommandError::InvalidArgument("buffer has invalid value"))?;
+    let _size = sub_match.value_of("size").map(str::parse).unwrap_or(Ok(1000)).map_err(|_| CommandError::InvalidArgument("size has invalid value"))?;
+    let _buffer_size = sub_match.value_of("buffer").map(str::parse).unwrap_or(Ok(1000)).map_err(|_| CommandError::InvalidArgument("buffer has invalid value"))?;
     let query = sub_match.value_of("query").ok_or(CommandError::InvalidArgument("query required"))?;
     let index = sub_match.value_of("index");
     let fields = sub_match.value_of("fields").map(|f| f.split(',').collect());
-    let output_format = sub_match.value_of("output")
-        .map(commands::OutputFormat::from_str)
-        .unwrap_or(Ok(commands::OutputFormat::Pretty()))?;
-    let mut command = commands::SearchCommand::new(buffer_size, size, server, index, query, fields, output_format);
+    let display_format = sub_match.value_of("output");
+    let mut command = commands::SearchCommand::new(server, index, query, fields, display_format);
     command.execute()
 }
 
