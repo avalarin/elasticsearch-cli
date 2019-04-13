@@ -14,7 +14,7 @@ pub trait Client {
 
 #[derive(Debug, Fail)]
 pub enum ClientError {
-    #[fail(display = "request error: {}", inner)]
+    #[fail(display = "{}", inner)]
     RequestError { inner: String }
 }
 

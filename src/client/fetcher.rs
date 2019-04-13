@@ -2,7 +2,7 @@ use std::collections::linked_list::LinkedList;
 
 #[derive(Debug, Fail)]
 pub enum FetcherError {
-    #[fail(display = "request error: {}", inner)]
+    #[fail(display = "{}", inner)]
     RequestError { inner: String }
 }
 
@@ -31,10 +31,7 @@ impl <T> Collector<T> {
     }
 
     fn fetch_next(&mut self) -> Result<usize, FetcherError> {
-        let (total, results) = self.fetcher.fetch_next(self.from).map_err(|err| {
-            error!("Cannot fetch next items: {}", err);
-            err
-        })?;
+        let (total, results) = self.fetcher.fetch_next(self.from)?;
         if results.len() == 0 {
             return Ok(0)
         }

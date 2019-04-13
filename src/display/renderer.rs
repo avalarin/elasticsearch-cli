@@ -76,22 +76,6 @@ mod tests {
         }
     }
 
-    fn get_value() -> serde_json::Value {
-        json!({
-            "root": {
-                 "obj": {
-                      "strKey": "str1",
-                      "intKey": 1
-                 },
-                 "arr": [
-                    { "value": 1 },
-                    { "value": 2 },
-                    { "value": 3 }
-                 ]
-            }
-        })
-    }
-
     #[test]
     fn renderer_pretty_format_should_render_first_row_without_delimiter() {
         let mut writer = Writer::new();
