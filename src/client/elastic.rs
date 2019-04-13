@@ -52,7 +52,7 @@ impl Client for ElasticClient {
             );
         }
 
-        let client = builder.base_url(self.server_config.server.as_ref())
+        let client = builder.base_url(self.server_config.server.clone())
             .build()
             .map_err(|err| {
                 error!("Cannot create elasticsearch client: {}", err);
