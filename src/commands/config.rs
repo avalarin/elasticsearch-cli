@@ -1,8 +1,11 @@
 use std::clone::Clone;
 use clap::ArgMatches;
-use commands::{Command, CommandError};
-use config::{ApplicationConfig, ElasticSearchServer};
+use commands::Command;
+use config::{ApplicationConfig, ElasticSearchServer, ElasticSearchServerType};
 use serde_yaml;
+use error::ApplicationError;
+
+use std::str::FromStr;
 
 pub struct ConfigCommand {
     pub config: ApplicationConfig,
@@ -11,9 +14,24 @@ pub struct ConfigCommand {
 
 #[derive(Clone)]
 pub enum ConfigAction {
-    AddServer { name: String, address: String, index: Option<String>, username: Option<String>, password: Option<String> },
-    UpdateServer { name: String, address: Option<String>, index: Option<String>, username: Option<String>, password: Option<String> },
+    AddServer {
+        name: String,
+        address: String,
+        server_type: ElasticSearchServerType,
+        index: Option<String>,
+        username: Option<String>,
+        password: Option<String>
+    },
+    UpdateServer {
+        name: String,
+        address: Option<String>,
+        server_type: Option<ElasticSearchServerType>,
+        index: Option<String>,
+        username: Option<String>,
+        password: Option<String>
+    },
     UseServer { name: String },
+    Show
 }
 
 impl ConfigCommand {
@@ -21,67 +39,110 @@ impl ConfigCommand {
         ConfigCommand { config, action }
     }
 
-    pub fn parse(config: ApplicationConfig, args: &ArgMatches) -> Result<Self, CommandError> {
+    pub fn parse(config: ApplicationConfig, args: &ArgMatches) -> Result<Self, ApplicationError> {
         let action = match args.subcommand() {
             ("add", Some(add_match)) => {
                 match add_match.subcommand() {
                     ("server", Some(server_match)) => {
-                        let name = server_match.value_of("name").ok_or(CommandError::InvalidArgument("[name] is required"))?;
-                        let address = server_match.value_of("address").ok_or(CommandError::InvalidArgument("[address] is required"))?;
+                        let name = server_match.value_of("name").ok_or_else(|| {
+                            error!("Argument 'name' is required");
+                            ApplicationError
+                        })?;
+                        let address = server_match.value_of("address").ok_or_else(|| {
+                            error!("Argument 'address' is required");
+                            ApplicationError
+                        })?;
                         let index = server_match.value_of("index");
                         let username = server_match.value_of("username");
                         let password = server_match.value_of("password");
+                        let server_type = server_match.value_of("type")
+                            .map(FromStr::from_str)
+                            .unwrap_or(Ok(ElasticSearchServerType::Elastic))
+                            .map_err(|err| {
+                                error!("{}", err);
+                                ApplicationError
+                            })?;
                         Ok(ConfigAction::AddServer {
                             name: name.to_owned(),
                             address: address.to_owned(),
+                            server_type,
                             index: index.map(str::to_owned),
                             username: username.map(str::to_owned),
                             password: password.map(str::to_owned),
                         })
+                    },
+                    (resource, _) => {
+                        error!("Unknown resource - {}", resource);
+                        Err(ApplicationError)
                     }
-                    _ => { Err(CommandError::InvalidArgument("Unknown resource")) }
                 }
             }
             ("update", Some(update_match)) => {
                 match update_match.subcommand() {
                     ("server", Some(server_match)) => {
-                        let name = server_match.value_of("name").ok_or(CommandError::InvalidArgument("[name] is required"))?;
+                        let name = server_match.value_of("name").ok_or_else(|| {
+                            error!("Argument 'name' is required");
+                            ApplicationError
+                        })?;
                         let address = server_match.value_of("address");
                         let index = server_match.value_of("index");
                         let username = server_match.value_of("username");
                         let password = server_match.value_of("password");
+                        let server_type = server_match.value_of("type")
+                            .map(ElasticSearchServerType::from_str)
+                            .map_or(Ok(None), |v| v.map(Some))
+                            .map_err(|err| {
+                                error!("{}", err);
+                                ApplicationError
+                            })?;
+
                         Ok(ConfigAction::UpdateServer {
                             name: name.to_owned(),
                             address: address.map(str::to_owned),
+                            server_type,
                             index: index.map(str::to_owned),
                             username: username.map(str::to_owned),
                             password: password.map(str::to_owned),
                         })
+                    },
+                    (resource, _) => {
+                        error!("Unknown resource - {}", resource);
+                        Err(ApplicationError)
                     }
-                    _ => { Err(CommandError::InvalidArgument("Unknown resource")) }
                 }
             }
             ("use", Some(use_match)) => {
                 match use_match.subcommand() {
                     ("server", Some(server_match)) => {
-                        let name = server_match.value_of("name").ok_or(CommandError::InvalidArgument("[name] is required"))?;
+                        let name = server_match.value_of("name").ok_or_else(|| {
+                            error!("Argument 'name' is required");
+                            ApplicationError
+                        })?;
                         Ok(ConfigAction::UseServer { name: name.to_owned() })
                     }
-                    _ => { Err(CommandError::InvalidArgument("Unknown resource")) }
+                    (resource, _) => {
+                        error!("Unknown resource - {}", resource);
+                        Err(ApplicationError)
+                    }
                 }
             }
-            _ => { Err(CommandError::InvalidArgument("Unknown action")) }
+            ("show", _) => Ok(ConfigAction::Show),
+            (action, _) => {
+                error!("Unknown configuration action - {}", action);
+                Err(ApplicationError)
+            }
         }?;
         Ok(ConfigCommand::new(config, action))
     }
 }
 
-impl Command<CommandError> for ConfigCommand {
-    fn execute(&mut self) -> Result<(), CommandError> {
+impl Command for ConfigCommand {
+    fn execute(&mut self) -> Result<(), ApplicationError> {
         match self.action.clone() {
-            ConfigAction::AddServer { name, address, index, username, password } => {
+            ConfigAction::AddServer { name, address, server_type, index, username, password } => {
                 if self.config.servers.iter().any(|server| server.name == name) {
-                    return Err(CommandError::InvalidArgument("Server already exists"));
+                    error!("Cannot create new server: server with that name already exists");
+                    return Err(ApplicationError);
                 }
                 if self.config.default_server.is_none() {
                     self.config.default_server = Some(name.clone());
@@ -89,17 +150,24 @@ impl Command<CommandError> for ConfigCommand {
                 self.config.servers.push(ElasticSearchServer {
                     name,
                     server: address,
+                    server_type,
                     default_index: index,
                     username,
                     password,
                 });
             }
-            ConfigAction::UpdateServer { name, address, index, username, password } => {
+            ConfigAction::UpdateServer { name, address, server_type, index, username, password } => {
                 let mut server = self.config.servers.iter_mut().find(|server| server.name == name)
-                    .ok_or(CommandError::InvalidArgument("Server don't exists"))?;
+                    .ok_or_else(|| {
+                        error!("Server with name {} doesn't exists", name);
+                        ApplicationError
+                    })?;
 
                 if let Some(addr) = address {
                     server.server = addr
+                }
+                if let Some(server_type) = server_type {
+                    server.server_type = server_type
                 }
                 if index.is_some() {
                     server.default_index = index;
@@ -113,16 +181,25 @@ impl Command<CommandError> for ConfigCommand {
             }
             ConfigAction::UseServer { name } => {
                 if self.config.servers.iter().find(|server| server.name == name).is_none() {
-                    return Err(CommandError::InvalidArgument("Server don't exists"));
+                    error!("Server with name {} doesn't exists", name);
+                    return Err(ApplicationError);
                 }
                 self.config.default_server = Some(name);
             }
+            ConfigAction::Show => {}
         }
 
         info!("Saving new config to file {}", self.config.file_path);
-        println!("{}\n{}", self.config.file_path, serde_yaml::to_string(&self.config).map_err(|_| CommandError::InvalidArgument("Can't serialize"))?);
+        println!("{}\n{}", self.config.file_path, serde_yaml::to_string(&self.config)
+            .map_err(|err| {
+                error!("Can't serialize configuration: {}", err);
+                ApplicationError
+            })?);
 
         self.config.save_file()
-            .map_err(|cause| CommandError::CommonError(Box::new(cause)))
+            .map_err(|err| {
+                error!("Can't save configuration: {}", err);
+                ApplicationError
+            })
     }
 }

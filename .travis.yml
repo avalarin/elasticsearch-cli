@@ -19,7 +19,11 @@ env:
     - TARGET=x86_64-unknown-linux-gnu
     - SUFFIX=linux
 
+before_script:
+  - rustup component add clippy
+
 script:
+  - cargo clippy -- -D warnings
   - cargo build --target $TARGET --verbose
   - cargo test --target $TARGET --verbose
 
