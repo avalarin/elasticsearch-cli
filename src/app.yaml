@@ -72,6 +72,10 @@ subcommands:
                         help: "Default index"
                         long: index
                         takes_value: true
+                    - type:
+                        help: "Type of server (elastic or kibana). Default: elastic"
+                        long: type
+                        takes_value: true
                     - username:
                         help: "Optional username for basic auth"
                         long: username
@@ -95,6 +99,18 @@ subcommands:
                         help: "Default index"
                         long: index
                         takes_value: true
+                    - type:
+                        help: "Type of server (elastic or kibana)"
+                        long: type
+                        takes_value: true
+                    - username:
+                        help: "Optional username for basic auth"
+                        long: username
+                        takes_value: true
+                    - password:
+                        help: "Optional password for basic auth"
+                        long: password
+                        takes_value: true
         - use:
             subcommands:
               - server:
@@ -102,3 +118,5 @@ subcommands:
                     - name:
                         help: "Server name"
                         index: 1
+        - show:
+            about: "Show current configuration"

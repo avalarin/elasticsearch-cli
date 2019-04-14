@@ -1,9 +1,11 @@
 use std::clone::Clone;
 use clap::ArgMatches;
 use commands::Command;
-use config::{ApplicationConfig, ElasticSearchServer};
+use config::{ApplicationConfig, ElasticSearchServer, ElasticSearchServerType};
 use serde_yaml;
 use error::ApplicationError;
+
+use std::str::FromStr;
 
 pub struct ConfigCommand {
     pub config: ApplicationConfig,
@@ -12,9 +14,24 @@ pub struct ConfigCommand {
 
 #[derive(Clone)]
 pub enum ConfigAction {
-    AddServer { name: String, address: String, index: Option<String>, username: Option<String>, password: Option<String> },
-    UpdateServer { name: String, address: Option<String>, index: Option<String>, username: Option<String>, password: Option<String> },
+    AddServer {
+        name: String,
+        address: String,
+        server_type: ElasticSearchServerType,
+        index: Option<String>,
+        username: Option<String>,
+        password: Option<String>
+    },
+    UpdateServer {
+        name: String,
+        address: Option<String>,
+        server_type: Option<ElasticSearchServerType>,
+        index: Option<String>,
+        username: Option<String>,
+        password: Option<String>
+    },
     UseServer { name: String },
+    Show
 }
 
 impl ConfigCommand {
@@ -38,9 +55,17 @@ impl ConfigCommand {
                         let index = server_match.value_of("index");
                         let username = server_match.value_of("username");
                         let password = server_match.value_of("password");
+                        let server_type = server_match.value_of("type")
+                            .map(FromStr::from_str)
+                            .unwrap_or(Ok(ElasticSearchServerType::Elastic))
+                            .map_err(|err| {
+                                error!("{}", err);
+                                ApplicationError
+                            })?;
                         Ok(ConfigAction::AddServer {
                             name: name.to_owned(),
                             address: address.to_owned(),
+                            server_type,
                             index: index.map(str::to_owned),
                             username: username.map(str::to_owned),
                             password: password.map(str::to_owned),
@@ -63,9 +88,18 @@ impl ConfigCommand {
                         let index = server_match.value_of("index");
                         let username = server_match.value_of("username");
                         let password = server_match.value_of("password");
+                        let server_type = server_match.value_of("type")
+                            .map(ElasticSearchServerType::from_str)
+                            .map_or(Ok(None), |v| v.map(Some))
+                            .map_err(|err| {
+                                error!("{}", err);
+                                ApplicationError
+                            })?;
+
                         Ok(ConfigAction::UpdateServer {
                             name: name.to_owned(),
                             address: address.map(str::to_owned),
+                            server_type,
                             index: index.map(str::to_owned),
                             username: username.map(str::to_owned),
                             password: password.map(str::to_owned),
@@ -92,6 +126,7 @@ impl ConfigCommand {
                     }
                 }
             }
+            ("show", _) => Ok(ConfigAction::Show),
             (action, _) => {
                 error!("Unknown configuration action - {}", action);
                 Err(ApplicationError)
@@ -104,7 +139,7 @@ impl ConfigCommand {
 impl Command for ConfigCommand {
     fn execute(&mut self) -> Result<(), ApplicationError> {
         match self.action.clone() {
-            ConfigAction::AddServer { name, address, index, username, password } => {
+            ConfigAction::AddServer { name, address, server_type, index, username, password } => {
                 if self.config.servers.iter().any(|server| server.name == name) {
                     error!("Cannot create new server: server with that name already exists");
                     return Err(ApplicationError);
@@ -115,12 +150,13 @@ impl Command for ConfigCommand {
                 self.config.servers.push(ElasticSearchServer {
                     name,
                     server: address,
+                    server_type,
                     default_index: index,
                     username,
                     password,
                 });
             }
-            ConfigAction::UpdateServer { name, address, index, username, password } => {
+            ConfigAction::UpdateServer { name, address, server_type, index, username, password } => {
                 let mut server = self.config.servers.iter_mut().find(|server| server.name == name)
                     .ok_or_else(|| {
                         error!("Server with name {} doesn't exists", name);
@@ -129,6 +165,9 @@ impl Command for ConfigCommand {
 
                 if let Some(addr) = address {
                     server.server = addr
+                }
+                if let Some(server_type) = server_type {
+                    server.server_type = server_type
                 }
                 if index.is_some() {
                     server.default_index = index;
@@ -147,6 +186,7 @@ impl Command for ConfigCommand {
                 }
                 self.config.default_server = Some(name);
             }
+            ConfigAction::Show => {}
         }
 
         info!("Saving new config to file {}", self.config.file_path);

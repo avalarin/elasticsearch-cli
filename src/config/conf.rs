@@ -1,8 +1,9 @@
+use crate::config;
+
 use std::fs::{File, OpenOptions};
 use std::vec::Vec;
 use std::path::{Path, PathBuf};
 use std::io::Write;
-use config;
 use serde_yaml;
 use dirs;
 
@@ -19,6 +20,8 @@ pub struct ApplicationConfig {
 pub struct ElasticSearchServer {
     pub name: String,
     pub server: String,
+    #[serde(default)]
+    pub server_type: config::ElasticSearchServerType,
     pub default_index: Option<String>,
     pub username: Option<String>,
     pub password: Option<String>

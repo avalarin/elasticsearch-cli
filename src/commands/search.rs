@@ -1,6 +1,6 @@
-use crate::config::{ApplicationConfig, GetServerError};
+use crate::config::{ApplicationConfig, ElasticSearchServer, ElasticSearchServerType, GetServerError};
 use crate::commands::Command;
-use crate::client::{Client, elastic::ElasticClient, SearchRequest};
+use crate::client::{Client, elastic::ElasticClient, kibana::KibanaProxyClient, SearchRequest};
 use crate::display::*;
 
 use clap::ArgMatches;
@@ -84,7 +84,7 @@ impl SearchCommand {
                 custom => OutputFormat::Custom(custom.to_string())
             }).unwrap_or(OutputFormat::Pretty);
 
-        let client = Box::new(ElasticClient::create(server.clone(), buffer_size));
+        let client = Self::create_client(server, buffer_size);
 
         let extractor = sub_match.value_of("fields")
             .map(|s| JSONExtractor::filtered(s.split(',')))
@@ -97,5 +97,12 @@ impl SearchCommand {
             request: SearchRequest { query, index },
             renderer
         })
+    }
+
+    fn create_client(server: &ElasticSearchServer, buffer_size: usize) -> Box<Client> {
+        match server.server_type {
+            ElasticSearchServerType::Elastic => Box::new(ElasticClient::create(server.clone(), buffer_size)),
+            ElasticSearchServerType::Kibana => Box::new(KibanaProxyClient::create(server.clone(), buffer_size))
+        }
     }
 }
