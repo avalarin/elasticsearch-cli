@@ -32,7 +32,7 @@ impl <T> Collector<T> {
 
     fn fetch_next(&mut self) -> Result<usize, FetcherError> {
         let (total, results) = self.fetcher.fetch_next(self.from)?;
-        if results.len() == 0 {
+        if results.is_empty() {
             return Ok(0)
         }
         let count = results.len();
@@ -50,7 +50,7 @@ impl <T> Iterator for Collector<T> {
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.buffer.len() == 0 {
+        if self.buffer.is_empty() {
             if self.from >= self.total {
                 return None
             }

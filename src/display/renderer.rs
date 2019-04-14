@@ -21,19 +21,19 @@ impl Renderer {
         match &self.format {
             OutputFormat::Pretty => {
                 if index > 0 {
-                    let _ = write!(w, "{}\n", "-".repeat(4).blue().bold());
+                    let _ = writeln!(w, "{}", "-".repeat(4).blue().bold());
                 }
                 let map = self.extractor.extract(item);
                 for (key, value) in map {
-                    let _ = write!(w, "{}: {}\n", key.green().bold(), format_string(&value));
+                    let _ = writeln!(w, "{}: {}", key.green().bold(), format_string(&value));
                 }
             },
             OutputFormat::JSON => {
-                let _ = write!(w, "{}\n", item);
+                let _ = writeln!(w, "{}", item);
             },
             OutputFormat::Custom(format) => {
                 let map: &HashMap<String, String> = &self.extractor.extract(item).into_iter().collect();
-                let _ = write!(w, "{}\n", strfmt(format, map).unwrap_or_else(|_| "Cannot format item".to_owned()));
+                let _ = writeln!(w, "{}", strfmt(format, map).unwrap_or_else(|_| "Cannot format item".to_owned()));
             }
         };
     }

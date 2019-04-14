@@ -1,5 +1,6 @@
 use serde_json::Value;
 use std::iter::FromIterator;
+use std::convert::Into;
 use std::collections::HashSet;
 use std::collections::btree_map::BTreeMap;
 
@@ -19,7 +20,7 @@ impl JSONExtractor {
     pub fn filtered<S: Into<String>, I: IntoIterator<Item = S>>(fields: I) -> Self {
         JSONExtractor {
             field_delimiter: ".".to_string(),
-            fields: Some(HashSet::from_iter(fields.into_iter().map(|s| s.into())))
+            fields: Some(HashSet::from_iter(fields.into_iter().map(Into::into)))
         }
     }
 

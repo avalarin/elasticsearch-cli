@@ -61,7 +61,7 @@ impl Client for ElasticClient {
 
         let fetcher = ElasticFetcher::create(client, request, self.buffer_size);
 
-        return Collector::create(fetcher)
+        Collector::create(fetcher)
             .map_err(From::from)
     }
 }

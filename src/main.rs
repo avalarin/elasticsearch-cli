@@ -9,8 +9,6 @@ extern crate serde_json;
 extern crate stderrlog;
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate quick_error;
 extern crate reqwest;
 extern crate colored;
 extern crate strfmt;
@@ -31,7 +29,7 @@ use commands::{Command};
 use error::ApplicationError;
 
 fn main() {
-    if let Err(_) = run_application() {
+    if run_application().is_err() {
         std::process::exit(1);
     }
 }

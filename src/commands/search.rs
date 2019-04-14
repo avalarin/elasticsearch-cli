@@ -6,6 +6,7 @@ use crate::display::*;
 use clap::ArgMatches;
 
 use std::iter::{Iterator};
+use std::string::ToString;
 use error::ApplicationError;
 
 pub struct SearchCommand {
@@ -35,8 +36,8 @@ impl SearchCommand {
     pub fn parse(config: &ApplicationConfig, matches: &ArgMatches, sub_match: &ArgMatches) -> Result<Self, ApplicationError> {
         let server = match config.get_server(matches.value_of("server")) {
             Ok(server) => Ok(server),
-            Err(GetServerError::ServerNotFound(name)) => {
-                error!("Server with name '{}' not found", name);
+            Err(GetServerError::ServerNotFound { server }) => {
+                error!("Server with name '{}' not found", server);
                 Err(ApplicationError)
             }
             Err(GetServerError::ServerNotSpecified) => {
@@ -65,16 +66,16 @@ impl SearchCommand {
             })?;
 
         let query = sub_match.value_of("query")
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .ok_or_else(|| {
                 error!("Query must be specified");
                 ApplicationError
             })?;
 
         let index = sub_match.value_of("index")
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .or_else(|| server.default_index.clone())
-            .unwrap_or("*".to_string());
+            .unwrap_or_else(|| "*".to_string());
 
         let format = sub_match.value_of("output")
             .map(|f| match f {
@@ -87,7 +88,7 @@ impl SearchCommand {
 
         let extractor = sub_match.value_of("fields")
             .map(|s| JSONExtractor::filtered(s.split(',')))
-            .unwrap_or_else(|| JSONExtractor::default());
+            .unwrap_or_else(JSONExtractor::default);
 
         let renderer = Box::new(Renderer::create(format, extractor));
 

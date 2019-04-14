@@ -73,14 +73,14 @@ impl ApplicationConfig {
         };
 
         self.servers.iter().find(|server| server.name == server_name)
-            .ok_or_else(||config::GetServerError::ServerNotFound(server_name.clone()))
+            .ok_or_else(||config::GetServerError::ServerNotFound { server: server_name.clone() })
     }
 
     pub fn save_file(&self) -> Result<(), config::Error> {
         let mut file = self.open_file_or_create()?;
         let yaml = serde_yaml::to_string(self).map_err(|err| {
             error!("Cannot serialize configuration: {}", err);
-            config::Error::FileSystemError(Box::new(err))
+            config::Error::YamlError { inner: err }
         })?;
         file.write_all(yaml.as_bytes()).map_err(|err| {
             error!("Cannot write configuration file: {}", err);
@@ -92,12 +92,12 @@ impl ApplicationConfig {
         if Path::new(&self.file_path).exists() {
             OpenOptions::new().write(true).open(&self.file_path).map_err(|err| {
                 error!("Cannot open configuration file {}: {}", self.file_path, err);
-                config::Error::FileSystemError(Box::new(err))
+                config::Error::IOError { inner: err }
             })
         } else {
             File::create(&self.file_path).map_err(|err| {
                 error!("Cannot create empty configuration file {}: {}", self.file_path, err);
-                config::Error::FileSystemError(Box::new(err))
+                config::Error::IOError { inner: err }
             })
         }
     }
