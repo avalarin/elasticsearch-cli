@@ -40,11 +40,11 @@ deploy:
     on:
       tags: true
       condition: $TRAVIS_RUST_VERSION = stable && $TARGET != ""
-  # - provider: script
-  #   script: bash ci/deploy_brew.sh
-  #   on:
-  #     tags: true
-  #     condition: $TRAVIS_RUST_VERSION = stable && $TARGET = "x86_64-apple-darwin"
+   - provider: script
+     script: bash ci/deploy_brew.sh
+     on:
+       tags: true
+       condition: $TRAVIS_RUST_VERSION = stable && $TARGET = "x86_64-apple-darwin"
 notifications:
   email:
     on_success: never
