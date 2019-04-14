@@ -23,23 +23,23 @@ Configuration file stored in your home directory - `~/.elastic-cli`. Empty confi
 
 You need to register some elasticsearch server and set is as default:
 ```
-eclastic-cli config add server local --address http://localhost:9200 --index '*'
-eclastic-cli config use server local
+elastic-cli config add server local --address http://localhost:9200 --index '*'
+elastic-cli config use server local
 ```
 
 ## Usage
 
 Examples:
 ```
-eclastic-cli search -q 'level: Error'
-eclastic-cli search -q 'level: Error' -o json
-eclastic-cli search -q 'level: Error' -o '{level} {message}'
-eclastic-cli search -q 'level: Error' -f 'level,message'
+elastic-cli search -q 'level: Error'
+elastic-cli search -q 'level: Error' -o json
+elastic-cli search -q 'level: Error' -o '{level} {message}'
+elastic-cli search -q 'level: Error' -f 'level,message'
 ```
 
 For more documentation use help:
 ```
-eclastic-cli help
-eclastic-cli search --help
-eclastic-cli config --help
+elastic-cli help
+elastic-cli search --help
+elastic-cli config --help
 ```

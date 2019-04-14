@@ -1,7 +1,7 @@
 [package]
 name = "elastic-cli"
 version = "0.2.3"
-authors = ["Prokopev Alexandr <a.prokopev@qiwi.com>"]
+authors = ["Prokopev Alexandr <avalarin@gmail.com>"]
 
 [dependencies]
 clap = {version = "2.31.2", features = ["yaml"]}

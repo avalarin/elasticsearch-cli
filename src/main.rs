@@ -37,7 +37,11 @@ fn main() {
 
 fn run_application() -> Result<(), ApplicationError> {
     let yaml = load_yaml!("app.yaml");
-    let app = App::from_yaml(yaml);
+    let app = App::from_yaml(yaml)
+        .name(env!("CARGO_PKG_NAME"))
+        .author(env!("CARGO_PKG_AUTHORS"))
+        .about(env!("CARGO_PKG_DESCRIPTION"))
+        .version(env!("CARGO_PKG_VERSION"));
     let args = app.get_matches();
 
     configure_logger(&args)?;

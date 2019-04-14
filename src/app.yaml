@@ -1,7 +1,3 @@
-name: elastic-cli
-about: Command line interface for Elasticsearch
-author: Alexandr P. <avalarin@gmail.com>
-
 args:
   - verbosity:
       help: "Increase message verbosity"
