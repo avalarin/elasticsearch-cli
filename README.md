@@ -15,7 +15,7 @@ TBD
 
 * Download the latest release from the [releases page](https://github.com/avalarin/elasticsearch-cli/releases/latest)
 * Unpack it to the executable files directory (e.g. /usr/local/bin)
-* Make the kubectl binary executable `chmod +x /usr/local/bin/elastic-cli`
+* Make the elastic-cli binary executable `chmod +x /usr/local/bin/elastic-cli`
 
 ## Configuration
 
