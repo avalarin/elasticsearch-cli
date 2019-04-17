@@ -17,6 +17,7 @@ extern crate dirs;
 extern crate base64;
 #[macro_use]
 extern crate failure;
+extern crate keyring;
 
 mod config;
 mod commands;
@@ -25,9 +26,11 @@ mod client;
 mod display;
 
 use clap::{App, ArgMatches};
-use config::ApplicationConfig;
+use config::{ApplicationConfig, SecretsStorage};
 use commands::{Command};
 use error::ApplicationError;
+
+use std::sync::Arc;
 
 fn main() {
     if run_application().is_err() {
@@ -46,6 +49,8 @@ fn run_application() -> Result<(), ApplicationError> {
 
     configure_logger(&args)?;
 
+    let secrets = Arc::new(SecretsStorage::new("elastic-cli"));
+
     let config = args.value_of("config")
         .map_or_else(ApplicationConfig::load_default, ApplicationConfig::load_file)
         .map_err(|err| {
@@ -54,8 +59,8 @@ fn run_application() -> Result<(), ApplicationError> {
         })?;
 
     match args.subcommand() {
-        ("search", Some(sub_match)) => commands::SearchCommand::parse(&config, &args, sub_match)?.execute(),
-        ("config", Some(sub_match)) => commands::ConfigCommand::parse(config, sub_match)?.execute(),
+        ("search", Some(sub_match)) => commands::SearchCommand::parse(&config, secrets, &args, sub_match)?.execute(),
+        ("config", Some(sub_match)) => commands::ConfigCommand::parse(config, secrets, sub_match)?.execute(),
         _ => {
             println!("{}", args.usage());
             Err(ApplicationError)

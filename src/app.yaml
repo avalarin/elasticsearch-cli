@@ -1,3 +1,5 @@
+name: elastic-cli
+
 args:
   - verbosity:
       help: "Increase message verbosity"

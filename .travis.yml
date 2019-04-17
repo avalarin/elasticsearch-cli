@@ -13,6 +13,11 @@ matrix:
         - TARGET=x86_64-unknown-linux-gnu
         - SUFFIX=linux
 
+addons:
+  apt:
+    packages:
+      - libdbus-1-dev
+
 env:
   global:
     - PROJECT_NAME=elastic-cli

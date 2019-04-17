@@ -23,8 +23,7 @@ pub struct ElasticSearchServer {
     #[serde(default)]
     pub server_type: config::ElasticSearchServerType,
     pub default_index: Option<String>,
-    pub username: Option<String>,
-    pub password: Option<String>
+    pub username: Option<String>
 }
 
 impl ApplicationConfig {
@@ -42,7 +41,7 @@ impl ApplicationConfig {
             let config = ApplicationConfig {
                 file_path: path.to_owned(),
                 default_server: None,
-                servers: vec![],
+                servers: vec![]
             };
             return config.save_file().map(|_| config);
         }

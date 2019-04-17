@@ -1,15 +1,17 @@
 use std::clone::Clone;
 use clap::ArgMatches;
 use commands::Command;
-use config::{ApplicationConfig, ElasticSearchServer, ElasticSearchServerType};
+use config::{ApplicationConfig, ElasticSearchServer, ElasticSearchServerType, SecretsStorage};
 use serde_yaml;
 use error::ApplicationError;
 
 use std::str::FromStr;
+use std::sync::Arc;
 
 pub struct ConfigCommand {
     pub config: ApplicationConfig,
     pub action: ConfigAction,
+    pub secrets: Arc<SecretsStorage>
 }
 
 #[derive(Clone)]
@@ -35,11 +37,11 @@ pub enum ConfigAction {
 }
 
 impl ConfigCommand {
-    pub fn new(config: ApplicationConfig, action: ConfigAction) -> Self {
-        ConfigCommand { config, action }
+    pub fn new(config: ApplicationConfig, secrets: Arc<SecretsStorage>, action: ConfigAction) -> Self {
+        ConfigCommand { config, action, secrets }
     }
 
-    pub fn parse(config: ApplicationConfig, args: &ArgMatches) -> Result<Self, ApplicationError> {
+    pub fn parse(config: ApplicationConfig, secrets: Arc<SecretsStorage>, args: &ArgMatches) -> Result<Self, ApplicationError> {
         let action = match args.subcommand() {
             ("add", Some(add_match)) => {
                 match add_match.subcommand() {
@@ -132,7 +134,7 @@ impl ConfigCommand {
                 Err(ApplicationError)
             }
         }?;
-        Ok(ConfigCommand::new(config, action))
+        Ok(ConfigCommand::new(config, secrets, action))
     }
 }
 
@@ -152,9 +154,17 @@ impl Command for ConfigCommand {
                     server: address,
                     server_type,
                     default_index: index,
-                    username,
-                    password,
+                    username: username.clone()
                 });
+
+                if let (Some(username), Some(password)) = (username, password) {
+                    info!("Saving password to the system keychain...");
+                    self.secrets.write(&username, &password)
+                        .map_err(|err| {
+                            error!("Cannot save password: {}", err);
+                            ApplicationError
+                        })?;
+                }
             }
             ConfigAction::UpdateServer { name, address, server_type, index, username, password } => {
                 let mut server = self.config.servers.iter_mut().find(|server| server.name == name)
@@ -175,8 +185,22 @@ impl Command for ConfigCommand {
                 if username.is_some() {
                     server.username = username;
                 }
-                if password.is_some() {
-                    server.password = password;
+
+                if let Some(password) = password {
+                    match &server.username {
+                        None => {
+                            error!("Username should be specified!");
+                            return Err(ApplicationError);
+                        },
+                        Some(username) => {
+                            info!("Saving password to the system keychain...");
+                            self.secrets.write(&username, &password)
+                                .map_err(|err| {
+                                    error!("Cannot save password: {}", err);
+                                    ApplicationError
+                                })?;
+                        }
+                    }
                 }
             }
             ConfigAction::UseServer { name } => {

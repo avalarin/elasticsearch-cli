@@ -7,12 +7,15 @@ use clap::ArgMatches;
 
 use std::iter::{Iterator};
 use std::string::ToString;
+use std::sync::Arc;
 use error::ApplicationError;
+use config::SecretsStorage;
 
 pub struct SearchCommand {
     pub client: Box<Client>,
     pub renderer: Box<Renderer>,
-    pub request: SearchRequest
+    pub request: SearchRequest,
+    pub secrets: Arc<SecretsStorage>
 }
 
 impl Command for SearchCommand {
@@ -33,7 +36,7 @@ impl Command for SearchCommand {
 }
 
 impl SearchCommand {
-    pub fn parse(config: &ApplicationConfig, matches: &ArgMatches, sub_match: &ArgMatches) -> Result<Self, ApplicationError> {
+    pub fn parse(config: &ApplicationConfig, secrets: Arc<SecretsStorage>, matches: &ArgMatches, sub_match: &ArgMatches) -> Result<Self, ApplicationError> {
         let server = match config.get_server(matches.value_of("server")) {
             Ok(server) => Ok(server),
             Err(GetServerError::ServerNotFound { server }) => {
@@ -84,7 +87,7 @@ impl SearchCommand {
                 custom => OutputFormat::Custom(custom.to_string())
             }).unwrap_or(OutputFormat::Pretty);
 
-        let client = Self::create_client(server, buffer_size);
+        let client = Self::create_client(secrets.clone(), server, buffer_size);
 
         let extractor = sub_match.value_of("fields")
             .map(|s| JSONExtractor::filtered(s.split(',')))
@@ -95,14 +98,15 @@ impl SearchCommand {
         Ok(SearchCommand {
             client,
             request: SearchRequest { query, index },
-            renderer
+            renderer,
+            secrets
         })
     }
 
-    fn create_client(server: &ElasticSearchServer, buffer_size: usize) -> Box<Client> {
+    fn create_client(secrets: Arc<SecretsStorage>, server: &ElasticSearchServer, buffer_size: usize) -> Box<Client> {
         match server.server_type {
-            ElasticSearchServerType::Elastic => Box::new(ElasticClient::create(server.clone(), buffer_size)),
-            ElasticSearchServerType::Kibana => Box::new(KibanaProxyClient::create(server.clone(), buffer_size))
+            ElasticSearchServerType::Elastic => Box::new(ElasticClient::create(secrets, server.clone(), buffer_size)),
+            ElasticSearchServerType::Kibana => Box::new(KibanaProxyClient::create(secrets, server.clone(), buffer_size))
         }
     }
 }
