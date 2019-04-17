@@ -1,14 +1,16 @@
 use super::{Client, SearchRequest, ClientError, Fetcher, FetcherError, Collector};
 
-use config::ElasticSearchServer;
+use config::{ElasticSearchServer, SecretsStorage, Credentials};
 use serde_json::Value;
 use elastic::prelude::*;
 use elastic::http::header::{Authorization, Basic};
 use elastic::client::SyncSender;
 
 use std::iter::Iterator;
+use std::sync::Arc;
 
 pub struct ElasticClient {
+    secrets: Arc<SecretsStorage>,
     server_config: ElasticSearchServer,
     buffer_size: usize
 }
@@ -22,31 +24,37 @@ pub struct ElasticFetcher {
 
 impl ElasticClient {
     pub fn create(
+        secrets: Arc<SecretsStorage>,
         server_config: ElasticSearchServer,
         buffer_size: usize
     ) -> Self {
-        ElasticClient { server_config, buffer_size }
+        ElasticClient { secrets, server_config, buffer_size }
     }
 }
 
 impl Client for ElasticClient {
     fn execute(&self, request: &SearchRequest) -> Result<Collector<Value>, ClientError> {
+        let credentials = self.server_config.username.as_ref()
+            .map(|username| {
+                self.secrets.get_credentials(&username).map_err(|err| {
+                    error!("Cannot read credentials: {}", err);
+                    ClientError::RequestError { inner: format!("cannot read credentials: {}", err) }
+                })
+            })
+            .unwrap_or_else(|| Ok(None))?;
+
         // TODO Bearer Token auth
-        let _token = match &self.server_config.username {
-            Some(user) => match &self.server_config.password {
-                Some(pass) => Some(base64::encode(&format!("{}:{}", user, pass))),
-                None => Some(base64::encode(&format!("{}:", user)))
-            }
-            None => None
-        };
+        let _token = credentials.clone().map(|Credentials{ username, password }| {
+            Some(base64::encode(&format!("{}:{}", username, password)))
+        });
 
         let mut builder = SyncClientBuilder::new();
-        if let Some(username) = &self.server_config.username {
+        if let Some(Credentials{ username, password }) = credentials {
             builder = builder.params(
                 |p| {
                     p.header(Authorization(Basic {
-                        username: username.to_owned(),
-                        password: self.server_config.password.clone(),
+                        username: username.clone(),
+                        password: Some(password.clone()),
                     }))
                 }
             );

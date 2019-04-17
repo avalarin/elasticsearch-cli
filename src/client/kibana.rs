@@ -1,29 +1,33 @@
 use super::{Client, SearchRequest, ClientError, Fetcher, FetcherError, Collector};
 
-use config::ElasticSearchServer;
+use config::{ElasticSearchServer, SecretsStorage, Credentials};
 use serde_json::Value;
 use elastic::prelude::SearchResponse;
 use reqwest::Url;
+use std::sync::Arc;
 
 pub struct KibanaProxyClient {
+    secrets: Arc<SecretsStorage>,
     server_config: ElasticSearchServer,
     buffer_size: usize
 }
 
 pub struct KibanaProxyFetcher {
-    server_config: ElasticSearchServer,
+    url: Url,
+    credentials: Option<Credentials>,
     client: reqwest::Client,
-    index: String,
     query: String,
     buffer_size: usize
 }
 
 impl KibanaProxyClient {
     pub fn create(
+        secrets: Arc<SecretsStorage>,
         server_config: ElasticSearchServer,
         buffer_size: usize
     ) -> Self {
         KibanaProxyClient {
+            secrets,
             server_config,
             buffer_size
         }
@@ -33,7 +37,27 @@ impl KibanaProxyClient {
 impl Client for KibanaProxyClient {
     fn execute(&self, request: &SearchRequest) -> Result<Collector<Value>, ClientError> {
         let client = reqwest::Client::new();
-        let fetcher = KibanaProxyFetcher::create(self.server_config.clone(), client, request, self.buffer_size);
+
+        let mut url = Url::parse_with_params(
+            self.server_config.server.clone().as_ref(),
+            vec![("method", "POST"), ("path", format!("{}/_search", request.index).as_ref())]
+        ).map_err(|err| {
+            error!("Invalid server address: {}", err);
+            ClientError::RequestError { inner: format!("invalid server address: {}", err) }
+        })?;
+        url.set_path("/api/console/proxy");
+
+        let credentials = self.server_config.username.as_ref()
+            .map(|username| {
+                self.secrets.get_credentials(&username).map_err(|err| {
+                    error!("Cannot read credentials: {}", err);
+                    ClientError::RequestError { inner: format!("cannot read credentials: {}", err) }
+                })
+            })
+            .unwrap_or_else(|| Ok(None))?;
+
+
+        let fetcher = KibanaProxyFetcher::create(url, credentials, client, request, self.buffer_size);
 
         Collector::create(fetcher)
             .map_err(From::from)
@@ -42,16 +66,17 @@ impl Client for KibanaProxyClient {
 
 impl KibanaProxyFetcher {
     pub fn create(
-        server_config: ElasticSearchServer,
+        url: Url,
+        credentials: Option<Credentials>,
         client: reqwest::Client,
         request: &SearchRequest,
         buffer_size: usize
     ) -> KibanaProxyFetcher {
         KibanaProxyFetcher {
-            server_config,
+            url,
+            credentials,
             client,
             query: request.query.clone(),
-            index: request.index.clone(),
             buffer_size
         }
     }
@@ -59,20 +84,10 @@ impl KibanaProxyFetcher {
 
 impl Fetcher<Value> for KibanaProxyFetcher {
     fn fetch_next(&self, from: usize) -> Result<(usize, Vec<Value>), FetcherError> {
-        let mut url = Url::parse_with_params(
-            self.server_config.server.clone().as_ref(),
-            vec![("method", "POST"), ("path", format!("{}/_search", self.index).as_ref())]
-        )
-        .map_err(|err| {
-            error!("Invalid server address: {}", err);
-            FetcherError::RequestError { inner: format!("invalid server address: {}", err) }
-        })?;
-        url.set_path("/api/console/proxy");
+        let mut request = self.client.post(self.url.clone());
 
-        let mut request = self.client.post(url);
-
-        if let Some(username) = &self.server_config.username {
-            request = request.basic_auth(username.to_owned(), self.server_config.password.clone());
+        if let Some(Credentials { username, password }) = &self.credentials {
+            request = request.basic_auth(username.to_owned(), Some(password.to_owned()));
         }
 
         request
