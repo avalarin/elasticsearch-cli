@@ -18,6 +18,7 @@ extern crate base64;
 #[macro_use]
 extern crate failure;
 extern crate keyring;
+extern crate rpassword;
 
 mod config;
 mod commands;

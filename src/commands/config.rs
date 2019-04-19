@@ -1,6 +1,6 @@
 use std::clone::Clone;
-use clap::ArgMatches;
-use commands::Command;
+use clap::{ArgMatches};
+use commands::{Command};
 use config::{ApplicationConfig, ElasticSearchServer, ElasticSearchServerType, SecretsStorage};
 use serde_yaml;
 use error::ApplicationError;
@@ -30,7 +30,8 @@ pub enum ConfigAction {
         server_type: Option<ElasticSearchServerType>,
         index: Option<String>,
         username: Option<String>,
-        password: Option<String>
+        password: Option<String>,
+        ask_password: bool
     },
     UseServer { name: String },
     Show
@@ -90,6 +91,7 @@ impl ConfigCommand {
                         let index = server_match.value_of("index");
                         let username = server_match.value_of("username");
                         let password = server_match.value_of("password");
+                        let ask_password = server_match.is_present("ask-password");
                         let server_type = server_match.value_of("type")
                             .map(ElasticSearchServerType::from_str)
                             .map_or(Ok(None), |v| v.map(Some))
@@ -105,6 +107,7 @@ impl ConfigCommand {
                             index: index.map(str::to_owned),
                             username: username.map(str::to_owned),
                             password: password.map(str::to_owned),
+                            ask_password
                         })
                     },
                     (resource, _) => {
@@ -136,12 +139,43 @@ impl ConfigCommand {
         }?;
         Ok(ConfigCommand::new(config, secrets, action))
     }
+
+    fn read_password_from_tty(username: &String) -> Result<String, ApplicationError> {
+        rpassword::read_password_from_tty(Some(&format!("Enter the password for the user {}: ", username)))
+            .map_err(|err| {
+                error!("Cannot read a password: {}", err);
+                ApplicationError
+            })
+    }
+
+    fn fetch_credentials(username: Option<String>, password: Option<String>, ask_password: bool) -> Result<Option<(String, String)>, ApplicationError> {
+        match (username, password, ask_password) {
+            (Some(username), Some(password), _) => Ok(Some((username, password))),
+            (Some(username), None, true) => ConfigCommand::read_password_from_tty(&username).map(|p| Some((username, p))),
+            (Some(_), None, false) => {
+                error!("The password should be provided: neither --password nor --ask-password is used");
+                Err(ApplicationError)
+            }
+            (None, Some(_), _) | (None, None, true) => {
+                error!("The username should be specified, use --username");
+                Err(ApplicationError)
+            },
+            (None, None, false) => Ok(None)
+        }
+    }
 }
 
 impl Command for ConfigCommand {
     fn execute(&mut self) -> Result<(), ApplicationError> {
         match self.action.clone() {
-            ConfigAction::AddServer { name, address, server_type, index, username, password } => {
+            ConfigAction::AddServer {
+                name,
+                address,
+                server_type,
+                index,
+                username,
+                password
+            } => {
                 if self.config.servers.iter().any(|server| server.name == name) {
                     error!("Cannot create new server: server with that name already exists");
                     return Err(ApplicationError);
@@ -157,7 +191,8 @@ impl Command for ConfigCommand {
                     username: username.clone()
                 });
 
-                if let (Some(username), Some(password)) = (username, password) {
+                let password_needed = username.is_some();
+                if let Some((username, password)) = ConfigCommand::fetch_credentials(username, password, password_needed)? {
                     info!("Saving password to the system keychain...");
                     self.secrets.write(&username, &password)
                         .map_err(|err| {
@@ -166,7 +201,15 @@ impl Command for ConfigCommand {
                         })?;
                 }
             }
-            ConfigAction::UpdateServer { name, address, server_type, index, username, password } => {
+            ConfigAction::UpdateServer {
+                name,
+                address,
+                server_type,
+                index,
+                username,
+                password,
+                ask_password
+            } => {
                 let mut server = self.config.servers.iter_mut().find(|server| server.name == name)
                     .ok_or_else(|| {
                         error!("Server with name {} doesn't exists", name);
@@ -183,24 +226,16 @@ impl Command for ConfigCommand {
                     server.default_index = index;
                 }
                 if username.is_some() {
-                    server.username = username;
+                    server.username = username.clone();
                 }
 
-                if let Some(password) = password {
-                    match &server.username {
-                        None => {
-                            error!("Username should be specified!");
-                            return Err(ApplicationError);
-                        },
-                        Some(username) => {
-                            info!("Saving password to the system keychain...");
-                            self.secrets.write(&username, &password)
-                                .map_err(|err| {
-                                    error!("Cannot save password: {}", err);
-                                    ApplicationError
-                                })?;
-                        }
-                    }
+                if let Some((username, password)) = ConfigCommand::fetch_credentials(server.username.clone(), password, ask_password)? {
+                    info!("Saving password to the system keychain...");
+                    self.secrets.write(&username, &password)
+                        .map_err(|err| {
+                            error!("Cannot save password: {}", err);
+                            ApplicationError
+                        })?;
                 }
             }
             ConfigAction::UseServer { name } => {
