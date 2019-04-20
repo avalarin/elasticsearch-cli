@@ -75,7 +75,7 @@ subcommands:
                         long: type
                         takes_value: true
                     - username:
-                        help: "Optional username for basic auth"
+                        help: "Optional username for basic auth. If the '--password' option is not specified - the password will be asked"
                         long: username
                         takes_value: true
                     - password:
@@ -102,13 +102,16 @@ subcommands:
                         long: type
                         takes_value: true
                     - username:
-                        help: "Optional username for basic auth"
+                        help: "Optional username for basic auth. If the '--password' option is not specified - a password will be asked"
                         long: username
                         takes_value: true
                     - password:
                         help: "Optional password for basic auth"
                         long: password
                         takes_value: true
+                    - ask-password:
+                        help: "Force update the password. User name should be specified in the config file, or via the '--username' option"
+                        long: ask-password
         - use:
             subcommands:
               - server:

@@ -18,6 +18,7 @@ extern crate base64;
 #[macro_use]
 extern crate failure;
 extern crate keyring;
+extern crate rpassword;
 
 mod config;
 mod commands;
@@ -26,7 +27,7 @@ mod client;
 mod display;
 
 use clap::{App, ArgMatches};
-use config::{ApplicationConfig, SecretsStorage};
+use config::{ApplicationConfig, SystemSecretsStorage};
 use commands::{Command};
 use error::ApplicationError;
 
@@ -49,7 +50,7 @@ fn run_application() -> Result<(), ApplicationError> {
 
     configure_logger(&args)?;
 
-    let secrets = Arc::new(SecretsStorage::new("elastic-cli"));
+    let secrets = Arc::new(SystemSecretsStorage::new("elastic-cli"));
 
     let config = args.value_of("config")
         .map_or_else(ApplicationConfig::load_default, ApplicationConfig::load_file)

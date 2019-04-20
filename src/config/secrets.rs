@@ -1,6 +1,16 @@
 use keyring::{Keyring, KeyringError};
 
-pub struct SecretsStorage {
+pub trait SecretsReader {
+    fn read(&self, key: &str) -> Result<Option<String>, ReadSecretError>;
+
+    fn get_credentials(&self, username: &str) -> Result<Option<Credentials>, ReadSecretError>;
+}
+
+pub trait SecretsWriter {
+    fn write(&self, key: &str, secret: &str) -> Result<(), WriteSecretError>;
+}
+
+pub struct SystemSecretsStorage {
     service: String
 }
 
@@ -11,7 +21,7 @@ pub struct ReadSecretError {
     inner: String
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Fail, PartialEq)]
 #[fail(display = "cannot save secret by key {}: {}", key, inner)]
 pub struct WriteSecretError {
     key: String,
@@ -24,12 +34,14 @@ pub struct Credentials {
     pub password: String
 }
 
-impl SecretsStorage {
+impl SystemSecretsStorage {
     pub fn new(service: impl Into<String>) -> Self {
         Self { service: service.into() }
     }
+}
 
-    pub fn read(&self, key: &str) -> Result<Option<String>, ReadSecretError> {
+impl SecretsReader for SystemSecretsStorage {
+    fn read(&self, key: &str) -> Result<Option<String>, ReadSecretError> {
         let secret = Keyring::new(&self.service, key)
             .get_password();
         match secret {
@@ -39,18 +51,20 @@ impl SecretsStorage {
         }
     }
 
-    pub fn write(&self, key: &str, secret: &str) -> Result<(), WriteSecretError> {
+    fn get_credentials(&self, username: &str) -> Result<Option<Credentials>, ReadSecretError> {
+        self.read(username)
+            .map(|password| {
+                password.map(|password| Credentials { username: username.to_string(), password })
+            })
+    }
+}
+
+impl SecretsWriter for SystemSecretsStorage {
+    fn write(&self, key: &str, secret: &str) -> Result<(), WriteSecretError> {
         Keyring::new(&self.service, &key)
             .set_password(secret)
             .map_err(|err| {
                 WriteSecretError { key: key.to_string(), inner: format!("{}", err) }
-            })
-    }
-
-    pub fn get_credentials(&self, username: &str) -> Result<Option<Credentials>, ReadSecretError> {
-        self.read(username)
-            .map(|password| {
-                password.map(|password| Credentials { username: username.to_string(), password })
             })
     }
 }
