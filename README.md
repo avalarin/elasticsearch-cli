@@ -1,4 +1,7 @@
-# Elasticsearch CLI [![Build Status](https://travis-ci.org/avalarin/elasticsearch-cli.svg?branch=master)](https://travis-ci.org/avalarin/elasticsearch-cli)
+# Elasticsearch CLI 
+[![Build Status](https://travis-ci.org/avalarin/elasticsearch-cli.svg?branch=master)](https://travis-ci.org/avalarin/elasticsearch-cli)
+[![Coverage Status](https://coveralls.io/repos/github/avalarin/elasticsearch-cli/badge.svg?branch=refactor-config)](https://coveralls.io/github/avalarin/elasticsearch-cli?branch=refactor-config)
+
 Command-line interface for ElasticSearch
 
 ## Installing
