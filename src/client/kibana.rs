@@ -1,13 +1,13 @@
 use super::{Client, SearchRequest, ClientError, Fetcher, FetcherError, Collector};
 
-use config::{ElasticSearchServer, SecretsStorage, Credentials};
+use config::{ElasticSearchServer, SecretsReader, Credentials};
 use serde_json::Value;
 use elastic::prelude::SearchResponse;
 use reqwest::Url;
 use std::sync::Arc;
 
 pub struct KibanaProxyClient {
-    secrets: Arc<SecretsStorage>,
+    secrets: Arc<SecretsReader>,
     server_config: ElasticSearchServer,
     buffer_size: usize
 }
@@ -22,7 +22,7 @@ pub struct KibanaProxyFetcher {
 
 impl KibanaProxyClient {
     pub fn create(
-        secrets: Arc<SecretsStorage>,
+        secrets: Arc<SecretsReader>,
         server_config: ElasticSearchServer,
         buffer_size: usize
     ) -> Self {

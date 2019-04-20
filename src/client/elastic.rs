@@ -1,6 +1,6 @@
 use super::{Client, SearchRequest, ClientError, Fetcher, FetcherError, Collector};
 
-use config::{ElasticSearchServer, SecretsStorage, Credentials};
+use config::{ElasticSearchServer, SecretsReader, Credentials};
 use serde_json::Value;
 use elastic::prelude::*;
 use elastic::http::header::{Authorization, Basic};
@@ -10,7 +10,7 @@ use std::iter::Iterator;
 use std::sync::Arc;
 
 pub struct ElasticClient {
-    secrets: Arc<SecretsStorage>,
+    secrets: Arc<SecretsReader>,
     server_config: ElasticSearchServer,
     buffer_size: usize
 }
@@ -24,7 +24,7 @@ pub struct ElasticFetcher {
 
 impl ElasticClient {
     pub fn create(
-        secrets: Arc<SecretsStorage>,
+        secrets: Arc<SecretsReader>,
         server_config: ElasticSearchServer,
         buffer_size: usize
     ) -> Self {
