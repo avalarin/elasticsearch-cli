@@ -3,7 +3,6 @@ cache: cargo
 
 rust:
   - stable
-  - beta
   - nightly
 
 matrix:
@@ -42,14 +41,12 @@ before_script:
   - rustup component add clippy
 
 script:
-  - cargo clean
   - cargo clippy -- -D warnings
   - cargo build --target $TARGET --verbose --release
   - cargo test --target $TARGET --verbose
 
 after_success: |
   if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
-    Uncomment the following line for coveralls.io
     cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
   fi
 
