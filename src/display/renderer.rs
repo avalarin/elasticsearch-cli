@@ -1,4 +1,5 @@
 use super::{OutputFormat, JSONExtractor};
+use client::Collector;
 
 use serde_json::Value;
 use strfmt::strfmt;
@@ -6,6 +7,7 @@ use colored::*;
 
 use std::collections::HashMap;
 use std::io::Write;
+
 
 pub struct Renderer {
     format: OutputFormat,
@@ -17,7 +19,14 @@ impl Renderer {
         Renderer { format, extractor }
     }
 
-    pub fn render(&self, w: &mut Write, item: &Value, index: usize) {
+    pub fn render(&self, w: &mut Write, collector: Collector<Value>) {
+        collector.enumerate()
+            .for_each(|(index, item)| {
+                self.render_one(w, &item, index);
+            });
+    }
+
+    pub fn render_one(&self, w: &mut Write, item: &Value, index: usize) {
         match &self.format {
             OutputFormat::Pretty => {
                 if index > 0 {
@@ -81,7 +90,7 @@ mod tests {
         let mut writer = Writer::new();
 
         Renderer::create(OutputFormat::Pretty, JSONExtractor::default())
-            .render(
+            .render_one(
                 &mut writer,
                 &json!({
                     "root": {
@@ -100,7 +109,7 @@ mod tests {
         let mut writer = Writer::new();
 
         Renderer::create(OutputFormat::Pretty, JSONExtractor::default())
-            .render(
+            .render_one(
                 &mut writer,
                 &json!({
                     "root": {
@@ -119,7 +128,7 @@ mod tests {
         let mut writer = Writer::new();
 
         Renderer::create(OutputFormat::Pretty, JSONExtractor::default())
-            .render(
+            .render_one(
                 &mut writer,
                 &json!({
                     "root": {

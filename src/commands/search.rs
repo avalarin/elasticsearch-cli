@@ -1,11 +1,10 @@
 use crate::config::{ApplicationConfig, ElasticSearchServer, ElasticSearchServerType, GetServerError};
 use crate::commands::Command;
-use crate::client::{Client, elastic::ElasticClient, kibana::KibanaProxyClient, SearchRequest};
+use crate::client::{Client, elastic::ElasticClient, kibana::KibanaProxyClient, stub::StubClient, SearchRequest};
 use crate::display::*;
 
 use clap::ArgMatches;
 
-use std::iter::{Iterator};
 use std::string::ToString;
 use std::sync::Arc;
 use error::ApplicationError;
@@ -25,10 +24,7 @@ impl Command for SearchCommand {
         let _ = self.client.execute(&self.request).map_err(|err| {
             error!("Cannot fetch items from server: {}", err)
         }).map(|collector| {
-            collector.enumerate()
-                .for_each(|(index, item)| {
-                    self.renderer.render(&mut std::io::stdout(), &item, index);
-                });
+            self.renderer.render(&mut std::io::stdout(), collector);
         });
 
         Ok(())
@@ -106,7 +102,8 @@ impl SearchCommand {
     fn create_client(secrets: Arc<SecretsReader>, server: &ElasticSearchServer, buffer_size: usize) -> Box<Client> {
         match server.server_type {
             ElasticSearchServerType::Elastic => Box::new(ElasticClient::create(secrets, server.clone(), buffer_size)),
-            ElasticSearchServerType::Kibana => Box::new(KibanaProxyClient::create(secrets, server.clone(), buffer_size))
+            ElasticSearchServerType::Kibana => Box::new(KibanaProxyClient::create(secrets, server.clone(), buffer_size)),
+            ElasticSearchServerType::Stub => Box::new(StubClient::new(buffer_size))
         }
     }
 }

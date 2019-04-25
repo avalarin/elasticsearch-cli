@@ -1,6 +1,7 @@
 mod fetcher;
 pub mod elastic;
 pub mod kibana;
+pub mod stub;
 
 pub use self::fetcher::*;
 

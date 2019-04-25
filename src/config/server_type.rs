@@ -7,7 +7,8 @@ use std::str::FromStr;
 #[derive(Debug, PartialEq, Clone)]
 pub enum ElasticSearchServerType {
     Elastic,
-    Kibana
+    Kibana,
+    Stub
 }
 
 impl Default for ElasticSearchServerType {
@@ -22,7 +23,8 @@ impl Serialize for ElasticSearchServerType {
     fn serialize<S>(&self, s: S) -> Result<S::Ok, S::Error> where S: Serializer {
        match self {
            ElasticSearchServerType::Elastic => s.serialize_str("elastic"),
-           ElasticSearchServerType::Kibana => s.serialize_str("kibana")
+           ElasticSearchServerType::Kibana => s.serialize_str("kibana"),
+           ElasticSearchServerType::Stub => s.serialize_str("stub"),
        }
     }
 }
@@ -59,6 +61,7 @@ impl FromStr for ElasticSearchServerType {
         match s {
             "elastic" => Ok(ElasticSearchServerType::Elastic),
             "kibana" => Ok(ElasticSearchServerType::Kibana),
+            "stub" => Ok(ElasticSearchServerType::Stub),
             value => Err(UnknownElasticSearchServerTypeError { value: value.to_string() })
         }
     }
