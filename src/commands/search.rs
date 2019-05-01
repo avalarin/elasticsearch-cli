@@ -24,7 +24,7 @@ impl Command for SearchCommand {
         let _ = self.client.execute(&self.request).map_err(|err| {
             error!("Cannot fetch items from server: {}", err)
         }).map(|collector| {
-            self.renderer.render(&mut std::io::stdout(), collector);
+            self.renderer.render(collector);
         });
 
         Ok(())
@@ -51,6 +51,8 @@ impl SearchCommand {
                 Err(ApplicationError)
             }
         }?;
+
+        let pager_enabled = sub_match.is_present("pager");
 
         let _size = sub_match.value_of("size").map(str::parse).unwrap_or(Ok(1000))
             .map_err(|err| {
@@ -83,13 +85,12 @@ impl SearchCommand {
                 custom => OutputFormat::Custom(custom.to_string())
             }).unwrap_or(OutputFormat::Pretty);
 
-        let client = Self::create_client(secrets.clone(), server, buffer_size);
-
         let extractor = sub_match.value_of("fields")
             .map(|s| JSONExtractor::filtered(s.split(',')))
             .unwrap_or_else(JSONExtractor::default);
 
-        let renderer = Box::new(Renderer::create(format, extractor));
+        let renderer = Self::create_renderer(pager_enabled, format, extractor);
+        let client = Self::create_client(secrets.clone(), server, buffer_size);
 
         Ok(SearchCommand {
             client,
@@ -99,7 +100,23 @@ impl SearchCommand {
         })
     }
 
-    fn create_client(secrets: Arc<SecretsReader>, server: &ElasticSearchServer, buffer_size: usize) -> Box<Client> {
+    fn create_renderer(
+        pager_enabled: bool,
+        format: OutputFormat,
+        extractor: JSONExtractor
+    ) -> Box<Renderer> {
+        if pager_enabled {
+            Box::new(PagedRenderer::new(format, extractor))
+        } else {
+            Box::new(SimpleRenderer::new(format, extractor))
+        }
+    }
+
+    fn create_client(
+        secrets: Arc<SecretsReader>,
+        server: &ElasticSearchServer,
+        buffer_size: usize
+    ) -> Box<Client> {
         match server.server_type {
             ElasticSearchServerType::Elastic => Box::new(ElasticClient::create(secrets, server.clone(), buffer_size)),
             ElasticSearchServerType::Kibana => Box::new(KibanaProxyClient::create(secrets, server.clone(), buffer_size)),

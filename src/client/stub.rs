@@ -41,12 +41,12 @@ impl StubFetcher {
 impl Fetcher<Value> for StubFetcher {
 
     fn fetch_next(&self, from: usize) -> Result<(usize, Vec<Value>), FetcherError> {
-        let to = if from + self.buffer_size < self.total_count {
-            from + self.buffer_size
-        } else {
-            self.total_count
-        };
-        let count = to - from;
-        Ok((count, (from..to).map(|i| json!({"index": i})).collect()))
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        let to = std::cmp::min(from + self.buffer_size, self.total_count);
+        Ok((self.total_count, (from..to).map(|i| json!({
+            "index": i,
+            "pow": i * i,
+            "name": format!("Item #{}", i)
+        })).collect()))
     }
 }
