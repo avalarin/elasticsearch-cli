@@ -56,7 +56,7 @@ impl Pager {
                 Event::Key(Key::PageDown) |
                 Event::Mouse(MouseEvent::Press(MouseButton::WheelDown, _, _)) => {
                     if (self.scroll_mode == ScrollMode::ScrollDown) || !self.has_cropped_item {
-                        self.bottom_index = self.bottom_index + 1;
+                        self.bottom_index += 1;
                     }
                     self.scroll_mode = ScrollMode::ScrollDown;
                 },
