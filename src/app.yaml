@@ -51,7 +51,9 @@ subcommands:
             long: buffer
             default_value: "1000"
             takes_value: true
-
+        - pager:
+            help: "Enable the pager for output"
+            long: pager
   - config:
       about: "Configure"
       subcommands:

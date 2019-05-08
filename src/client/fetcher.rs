@@ -1,5 +1,3 @@
-use std::collections::linked_list::LinkedList;
-
 #[derive(Debug, Fail)]
 pub enum FetcherError {
     #[fail(display = "{}", inner)]
@@ -10,27 +8,47 @@ pub trait Fetcher<T> {
     fn fetch_next(&self, from: usize) -> Result<(usize, Vec<T>), FetcherError>;
 }
 
-pub struct Collector<T> {
+pub struct Collector<T> where T: Clone {
     fetcher: Box<Fetcher<T>>,
-    buffer: LinkedList<T>,
-    from: usize,
-    total: usize,
+    buffer: Vec<T>,
+    pub from: usize,
+    pub total: usize,
 }
 
-impl <T> Collector<T> {
+impl <T> Collector<T> where T: Clone {
     pub fn create(fetcher: impl Fetcher<T> + 'static) -> Result<Self, FetcherError> {
         let mut collector = Collector {
             fetcher: Box::new(fetcher),
-            buffer: LinkedList::new(),
+            buffer: Vec::new(),
             from: 0,
             total: 0
         };
 
-        collector.fetch_next()
+        collector.fetch_next(true)
             .map(|_| collector)
     }
 
-    fn fetch_next(&mut self) -> Result<usize, FetcherError> {
+    pub fn iter(&mut self) -> CollectorIterator<'_, T> {
+        CollectorIterator {
+            collector: self,
+            position: 0
+        }
+    }
+
+    fn get(&mut self, index: usize) -> Option<&T> {
+        // no more fetched items
+        if self.from - index == 0 &&
+            self.fetch_next(false).unwrap_or(0) == 0 {
+            return None
+        }
+
+        self.buffer.get(index)
+    }
+
+    fn fetch_next(&mut self, first: bool) -> Result<usize, FetcherError> {
+        if !first && self.from >= self.total {
+            return Ok(0)
+        }
         let (total, results) = self.fetcher.fetch_next(self.from)?;
         if results.is_empty() {
             return Ok(0)
@@ -46,19 +64,25 @@ impl <T> Collector<T> {
     }
 }
 
-impl <T> Iterator for Collector<T> {
+pub struct CollectorIterator<'a, T> where T: Clone {
+    collector: &'a mut Collector<T>,
+    position: usize
+}
+
+impl <'a, T> Iterator for CollectorIterator<'a, T> where T: Clone {
     type Item = T;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.buffer.is_empty() {
-            if self.from >= self.total {
-                return None
-            }
-            if self.fetch_next().unwrap_or(0) == 0 {
-                return None
-            }
-        }
-        self.buffer.pop_front()
+    fn next(&mut self) -> Option<T> {
+        let result = self.collector.get(self.position);
+        self.position += 1;
+        result.map(Clone::clone)
+    }
+}
+
+impl <'a, T> DoubleEndedIterator for CollectorIterator<'a, T> where T: Clone {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.position -= 1;
+        self.collector.get(self.position).map(Clone::clone)
     }
 }
 
@@ -91,7 +115,7 @@ mod tests {
             2 => Err(FetcherError::RequestError { inner: "fail".to_string() }),
             _ => Ok((5, vec![])),
         }));
-        let result: Vec<i32> = Collector::create(fetcher).unwrap().collect();
+        let result: Vec<i32> = Collector::create(fetcher).unwrap().iter().collect();
         assert_eq!(vec![99, 98], result);
     }
 
@@ -105,7 +129,7 @@ mod tests {
             5 => Ok((5, vec![1, 2])),
             _ => Ok((5, vec![1, 2])),
         }));
-        let result: Vec<i32> = Collector::create(fetcher).unwrap().collect();
+        let result: Vec<i32> = Collector::create(fetcher).unwrap().iter().collect();
         assert_eq!(vec![99, 98, 97, 96, 95], result);
     }
 
@@ -120,7 +144,7 @@ mod tests {
             6...20 => Ok((5, vec![1, 2])),
             _ => Ok((5, vec![]))
         }));
-        let result: Vec<i32> = Collector::create(fetcher).unwrap().collect();
+        let result: Vec<i32> = Collector::create(fetcher).unwrap().iter().collect();
         assert_eq!(vec![99, 98, 97, 96, 95, 94], result);
     }
 
@@ -131,8 +155,36 @@ mod tests {
             1 => Ok((5, vec![98, 97])),
             _ => panic!("should not happen"),
         }));
-        let result: Vec<i32> = Collector::create(fetcher).unwrap().take(3).collect();
+        let result: Vec<i32> = Collector::create(fetcher).unwrap().iter().take(3).collect();
         assert_eq!(vec![99, 98, 97], result);
     }
 
+    #[test]
+    fn it_should_fetch_no_more_than_necessary() {
+        let fetcher = FnFetcher(Box::new(|from| match from {
+            0 => Ok((5, vec![99])),
+            1 => Ok((5, vec![98, 97])),
+            _ => panic!("should not happen"),
+        }));
+
+        let result: Vec<i32> = Collector::create(fetcher).unwrap().iter().skip(1).take(2).collect();
+        assert_eq!(vec![98, 97], result);
+    }
+
+    #[test]
+    fn it_should_fetch_no_less_than_necessary() {
+        let fetcher = FnFetcher(Box::new(|from| match from {
+            0 => Ok((5, vec![99])),
+            1 => Ok((5, vec![98, 97])),
+            _ => panic!("should not happen"),
+        }));
+
+        let mut collector =  Collector::create(fetcher).unwrap();
+
+        let result: Vec<i32> = collector.iter().take(2).collect();
+        assert_eq!(vec![99, 98], result);
+
+        let result: Vec<i32> = collector.iter().skip(1).take(2).collect();
+        assert_eq!(vec![98, 97], result);
+    }
 }

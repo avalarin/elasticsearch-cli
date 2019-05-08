@@ -19,12 +19,15 @@ extern crate base64;
 extern crate failure;
 extern crate keyring;
 extern crate rpassword;
+extern crate termion;
+extern crate core;
 
 mod config;
 mod commands;
 mod error;
 mod client;
 mod display;
+mod utils;
 
 use clap::{App, ArgMatches};
 use config::{ApplicationConfig, SystemSecretsStorage};
