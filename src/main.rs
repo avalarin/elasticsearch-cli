@@ -27,6 +27,7 @@ mod commands;
 mod error;
 mod client;
 mod display;
+mod ui;
 mod utils;
 
 use clap::{App, ArgMatches};
@@ -62,14 +63,22 @@ fn run_application() -> Result<(), ApplicationError> {
             ApplicationError
         })?;
 
-    match args.subcommand() {
-        ("search", Some(sub_match)) => commands::SearchCommand::parse(&config, secrets, &args, sub_match)?.execute(),
-        ("config", Some(sub_match)) => commands::ConfigCommand::parse(config, secrets, sub_match)?.execute(),
-        _ => {
-            println!("{}", args.usage());
-            Err(ApplicationError)
-        }
-    }
+//    match args.subcommand() {
+//        ("search", Some(sub_match)) => commands::SearchCommand::parse(&config, secrets, &args, sub_match)?.execute(),
+//        ("config", Some(sub_match)) => commands::ConfigCommand::parse(config, secrets, sub_match)?.execute(),
+//        _ => {
+//            println!("{}", args.usage());
+//            Err(ApplicationError)
+//        }
+//    }
+
+    ui::core::UiCore::start(
+        ui::views::RootView::new(),
+        ui::reducers::RootReducer::new(),
+        ui::state::State::default()
+    );
+
+    Ok(())
 }
 
 fn configure_logger(args: &ArgMatches) -> Result<(), ApplicationError> {
