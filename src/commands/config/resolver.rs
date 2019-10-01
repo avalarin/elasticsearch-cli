@@ -8,8 +8,8 @@ use std::sync::Arc;
 use commands::config::password_questioner::PasswordQuestionerError;
 
 pub struct ConfigActionResolver {
-    password_questioner: Arc<PasswordQuestioner>,
-    secrets_writer: Arc<SecretsWriter>
+    password_questioner: Arc<dyn PasswordQuestioner>,
+    secrets_writer: Arc<dyn SecretsWriter>
 }
 
 #[derive(Debug, Fail, PartialEq)]
@@ -28,8 +28,8 @@ pub enum ConfigActionError {
 
 impl ConfigActionResolver {
     pub fn new(
-        password_questioner: Arc<PasswordQuestioner>,
-        secrets_writer: Arc<SecretsWriter>
+        password_questioner: Arc<dyn PasswordQuestioner>,
+        secrets_writer: Arc<dyn SecretsWriter>
     ) -> Self {
         Self {
             password_questioner,

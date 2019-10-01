@@ -1,0 +1,84 @@
+on: [push, pull_request]
+
+name: CI
+
+jobs:
+  check:
+    name: Cargo Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    if: false # disabled
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - run: rustup component add rustfmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          components: clippy
+          override: true
+      - uses: actions-rs/clippy-check@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  test_build:
+    name: Build for ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux
+          - os: macos-latest
+            name: macos
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install libdbus and libssl
+        if: ${{ matrix.name == 'linux' }}
+        run: sudo apt-get install -y libdbus-1-dev
+
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-features
+
+      - name: Publish artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: elastic-cli-${{ matrix.name }}
+          path: target/release/elastic-cli
