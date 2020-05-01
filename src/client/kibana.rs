@@ -7,7 +7,7 @@ use reqwest::Url;
 use std::sync::Arc;
 
 pub struct KibanaProxyClient {
-    secrets: Arc<SecretsReader>,
+    secrets: Arc<dyn SecretsReader>,
     server_config: ElasticSearchServer,
     buffer_size: usize
 }
@@ -22,7 +22,7 @@ pub struct KibanaProxyFetcher {
 
 impl KibanaProxyClient {
     pub fn create(
-        secrets: Arc<SecretsReader>,
+        secrets: Arc<dyn SecretsReader>,
         server_config: ElasticSearchServer,
         buffer_size: usize
     ) -> Self {

@@ -11,10 +11,10 @@ use error::ApplicationError;
 use config::SecretsReader;
 
 pub struct SearchCommand {
-    pub client: Box<Client>,
-    pub renderer: Box<Renderer>,
+    pub client: Box<dyn Client>,
+    pub renderer: Box<dyn Renderer>,
     pub request: SearchRequest,
-    pub secrets: Arc<SecretsReader>
+    pub secrets: Arc<dyn SecretsReader>
 }
 
 impl Command for SearchCommand {
@@ -32,7 +32,7 @@ impl Command for SearchCommand {
 }
 
 impl SearchCommand {
-    pub fn parse(config: &ApplicationConfig, secrets: Arc<SecretsReader>, matches: &ArgMatches, sub_match: &ArgMatches) -> Result<Self, ApplicationError> {
+    pub fn parse(config: &ApplicationConfig, secrets: Arc<dyn SecretsReader>, matches: &ArgMatches, sub_match: &ArgMatches) -> Result<Self, ApplicationError> {
         let server = match config.get_server(matches.value_of("server")) {
             Ok(server) => Ok(server),
             Err(GetServerError::ServerNotFound { server }) => {
@@ -104,7 +104,7 @@ impl SearchCommand {
         pager_enabled: bool,
         format: OutputFormat,
         extractor: JSONExtractor
-    ) -> Box<Renderer> {
+    ) -> Box<dyn Renderer> {
         if pager_enabled {
             Box::new(PagedRenderer::new(format, extractor))
         } else {
@@ -113,10 +113,10 @@ impl SearchCommand {
     }
 
     fn create_client(
-        secrets: Arc<SecretsReader>,
+        secrets: Arc<dyn SecretsReader>,
         server: &ElasticSearchServer,
         buffer_size: usize
-    ) -> Box<Client> {
+    ) -> Box<dyn Client> {
         match server.server_type {
             ElasticSearchServerType::Elastic => Box::new(ElasticClient::create(secrets, server.clone(), buffer_size)),
             ElasticSearchServerType::Kibana => Box::new(KibanaProxyClient::create(secrets, server.clone(), buffer_size)),

@@ -3,14 +3,15 @@ use super::{Client, SearchRequest, ClientError, Fetcher, FetcherError, Collector
 use config::{ElasticSearchServer, SecretsReader, Credentials};
 use serde_json::Value;
 use elastic::prelude::*;
-use elastic::http::header::{Authorization, Basic};
-use elastic::client::SyncSender;
+use elastic::http::sender::SyncSender;
+use elastic::http::header::{AUTHORIZATION};
 
 use std::iter::Iterator;
 use std::sync::Arc;
+use reqwest::header::HeaderValue;
 
 pub struct ElasticClient {
-    secrets: Arc<SecretsReader>,
+    secrets: Arc<dyn SecretsReader>,
     server_config: ElasticSearchServer,
     buffer_size: usize
 }
@@ -24,7 +25,7 @@ pub struct ElasticFetcher {
 
 impl ElasticClient {
     pub fn create(
-        secrets: Arc<SecretsReader>,
+        secrets: Arc<dyn SecretsReader>,
         server_config: ElasticSearchServer,
         buffer_size: usize
     ) -> Self {
@@ -50,17 +51,19 @@ impl Client for ElasticClient {
 
         let mut builder = SyncClientBuilder::new();
         if let Some(Credentials{ username, password }) = credentials {
+            let basic_auth_str = base64::encode(&format!("{}:{}", username, password));
+            let basic_auth = HeaderValue::from_str(&basic_auth_str).map_err(|err| {
+                error!("Cannot create Basic Authorization header: {}", err);
+                ClientError::RequestError { inner: format!("cannot build auth header: {}", err) }
+            })?;
             builder = builder.params(
-                |p| {
-                    p.header(Authorization(Basic {
-                        username: username.clone(),
-                        password: Some(password.clone()),
-                    }))
-                }
+                PreRequestParams::default()
+                    .header(AUTHORIZATION, basic_auth)
             );
         }
 
-        let client = builder.base_url(self.server_config.server.clone())
+        let client = builder
+            .static_node(self.server_config.server.clone())
             .build()
             .map_err(|err| {
                 error!("Cannot create elasticsearch client: {}", err);

@@ -9,7 +9,7 @@ pub trait Fetcher<T> {
 }
 
 pub struct Collector<T> where T: Clone {
-    fetcher: Box<Fetcher<T>>,
+    fetcher: Box<dyn Fetcher<T>>,
     buffer: Vec<T>,
     pub from: usize,
     pub total: usize,
@@ -90,7 +90,7 @@ impl <'a, T> DoubleEndedIterator for CollectorIterator<'a, T> where T: Clone {
 mod tests {
     use super::*;
 
-    struct FnFetcher<T>(pub Box<Fn(usize) -> Result<(usize, Vec<T>), FetcherError>>);
+    struct FnFetcher<T>(pub Box<dyn Fn(usize) -> Result<(usize, Vec<T>), FetcherError>>);
     impl <T> Fetcher<T> for FnFetcher<T> {
         fn fetch_next(&self, from: usize) -> Result<(usize, Vec<T>), FetcherError> {
             (self.0)(from)
@@ -141,7 +141,7 @@ mod tests {
             2 => Ok((5, vec![1, 2])),
             3 => Ok((5, vec![96, 95, 94])),
             5 => Ok((5, vec![1, 2])),
-            6...20 => Ok((5, vec![1, 2])),
+            6..=20 => Ok((5, vec![1, 2])),
             _ => Ok((5, vec![]))
         }));
         let result: Vec<i32> = Collector::create(fetcher).unwrap().iter().collect();

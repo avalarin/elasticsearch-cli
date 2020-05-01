@@ -46,7 +46,7 @@ pub enum ConfigAction {
 }
 
 impl ConfigCommand {
-    pub fn new(config: ApplicationConfig, secrets: Arc<SecretsWriter>, action: ConfigAction) -> Self {
+    pub fn new(config: ApplicationConfig, secrets: Arc<dyn SecretsWriter>, action: ConfigAction) -> Self {
         ConfigCommand {
             config,
             action,
@@ -57,7 +57,7 @@ impl ConfigCommand {
         }
     }
 
-    pub fn parse(config: ApplicationConfig, secrets: Arc<SecretsWriter>, args: &ArgMatches) -> Result<Self, ApplicationError> {
+    pub fn parse(config: ApplicationConfig, secrets: Arc<dyn SecretsWriter>, args: &ArgMatches) -> Result<Self, ApplicationError> {
         let action = match args.subcommand() {
             ("add", Some(add_match)) => {
                 match add_match.subcommand() {
